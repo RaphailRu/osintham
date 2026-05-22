@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OsintHAM — OSINT Investigation Constructor</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <script src="https://unpkg.com/cytoscape@3.27.0/dist/cytoscape.min.js"></script>
+    <style>
+        :root {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-card: #334155;
+            --accent: #6366f1;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+        }
+        body { background: var(--bg-primary); color: var(--text-primary); font-family: 'Segoe UI', sans-serif; }
+        .navbar { background: var(--bg-secondary) !important; border-bottom: 1px solid var(--bg-card); }
+        .card { background: var(--bg-secondary); border: 1px solid var(--bg-card); }
+        .card-header { background: rgba(99,102,241,0.1); border-bottom: 1px solid var(--bg-card); }
+        .form-control, .form-select { background: var(--bg-primary); border-color: var(--bg-card); color: var(--text-primary); }
+        .form-control:focus, .form-select:focus { background: var(--bg-primary); border-color: var(--accent); color: var(--text-primary); box-shadow: 0 0 0 0.2rem rgba(99,102,241,0.25); }
+        .btn-accent { background: var(--accent); color: white; border: none; }
+        .btn-accent:hover { background: #818cf8; color: white; }
+        #graph-container { width: 100%; height: 65vh; background: #1a1a2e; border-radius: 8px; border: 1px solid var(--bg-card); }
+        .log-panel { background: #0a0a1a; color: #22c55e; font-family: 'JetBrains Mono', monospace; font-size: 12px; padding: 12px; border-radius: 8px; max-height: 200px; overflow-y: auto; }
+        .log-entry { padding: 2px 0; border-bottom: 1px solid rgba(34,197,94,0.1); }
+        .log-time { color: #64748b; margin-right: 8px; }
+        .trust-badge { padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+        .trust-5 { background: #10b981; color: white; }
+        .trust-4 { background: #34d399; color: white; }
+        .trust-3 { background: #fbbf24; color: black; }
+        .trust-2 { background: #f97316; color: white; }
+        .trust-1 { background: #ef4444; color: white; }
+        .stat-card { text-align: center; padding: 12px; background: var(--bg-primary); border-radius: 8px; }
+        .stat-value { font-size: 24px; font-weight: bold; }
+        .stat-label { font-size: 11px; color: var(--text-secondary); }
+        .node-type-badge { padding: 2px 8px; border-radius: 4px; font-size: 11px; }
+        .sidebar-nav .nav-link { color: var(--text-secondary); padding: 8px 16px; border-radius: 6px; margin: 2px 0; }
+        .sidebar-nav .nav-link:hover, .sidebar-nav .nav-link.active { background: rgba(99,102,241,0.15); color: var(--accent); }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .terminal-output { background: #0a0a1a; color: #22c55e; font-family: 'JetBrains Mono', monospace; font-size: 13px; padding: 16px; border-radius: 8px; height: 50vh; overflow-y: auto; white-space: pre-wrap; }
+        .terminal-input { background: #0a0a1a; border: 1px solid var(--bg-card); color: #22c55e; font-family: 'JetBrains Mono', monospace; }
+        .terminal-input:focus { background: #0a0a1a; border-color: var(--accent); color: #22c55e; box-shadow: none; }
+        .report-preview { background: white; color: #333; border-radius: 8px; padding: 24px; }
+        .investigation-card { cursor: pointer; transition: all 0.2s; }
+        .investigation-card:hover { border-color: var(--accent) !important; transform: translateY(-2px); }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: var(--bg-secondary); }
+        ::-webkit-scrollbar-thumb { background: var(--bg-card); border-radius: 4px; }
+    </style>
+</head>
+<body>
+
+<!-- Navbar -->
+<nav class="navbar navbar-expand-lg navbar-dark">
+    <div class="container-fluid">
+        <a class="navbar-brand fw-bold" href="#" onclick="showTab('dashboard')">🕷️ OsintHAM</a>
+        <div class="d-flex align-items-center gap-2">
+            <span class="text-muted small" id="current-inv-title" style="display:none;"></span>
+            <button class="btn btn-accent btn-sm" onclick="showNewInvModal()">+ New Investigation</button>
+        </div>
+    </div>
+</nav>
+
+<div class="container-fluid">
+    <div class="row">
+        <!-- Sidebar -->
+        <nav class="col-md-2 d-none d-md-block sidebar-nav py-3" id="main-sidebar" style="display:none !important;">
+            <div class="px-3 mb-3">
+                <small class="text-muted text-uppercase" style="font-size:10px;letter-spacing:1px;">Navigation</small>
+            </div>
+            <ul class="nav flex-column">
+                <li class="nav-item"><a class="nav-link active" href="#" onclick="showTab('graph')">🕸️ Graph</a></li>
+                <li class="nav-item"><a class="nav-link" href="#" onclick="showTab('nodes')">🔵 Nodes</a></li>
+                <li class="nav-item"><a class="nav-link" href="#" onclick="showTab('edges')">🔗 Edges</a></li>
+                <li class="nav-item"><a class="nav-link" href="#" onclick="showTab('reports')">📋 Reports</a></li>
+                <li class="nav-item"><a class="nav-link" href="#" onclick="showTab('terminal')">💻 Terminal</a></li>
+            </ul>
+            <div class="px-3 mt-4">
+                <small class="text-muted text-uppercase" style="font-size:10px;letter-spacing:1px;">Investigations</small>
+            </div>
+            <ul class="nav flex-column mt-2" id="inv-list"></ul>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="col-md-10 ms-sm-auto px-4 py-4">
+
+            <!-- Dashboard Tab -->
+            <div id="tab-dashboard" class="tab-content active">
+                <h2 class="mb-4">Dashboard</h2>
+                <div class="row g-4" id="inv-grid"></div>
+            </div>
+
+            <!-- Graph Tab -->
+            <div id="tab-graph" class="tab-content">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h4 class="mb-0">Graph View</h4>
+                    <div class="btn-group">
+                        <button class="btn btn-sm btn-outline-light" onclick="addNodeModal()">+ Node</button>
+                        <button class="btn btn-sm btn-outline-light" onclick="addEdgeModal()">+ Edge</button>
+                        <button class="btn btn-sm btn-outline-light" onclick="fitGraph()">Fit</button>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-9">
+                        <div id="graph-container"></div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card mb-3">
+                            <div class="card-header"><small>Graph Stats</small></div>
+                            <div class="card-body">
+                                <div class="row g-2">
+                                    <div class="col-6"><div class="stat-card"><div class="stat-value text-primary" id="stat-nodes">0</div><div class="stat-label">Nodes</div></div></div>
+                                    <div class="col-6"><div class="stat-card"><div class="stat-value text-success" id="stat-edges">0</div><div class="stat-label">Edges</div></div></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card">
+                            <div class="card-header"><small>Activity Log</small></div>
+                            <div class="card-body p-0">
+                                <div class="log-panel" id="log-panel"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Nodes Tab -->
+            <div id="tab-nodes" class="tab-content">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h4>Nodes</h4>
+                    <button class="btn btn-accent btn-sm" onclick="addNodeModal()">+ Add Node</button>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-dark table-hover">
+                        <thead><tr><th>Type</th><th>Label</th><th>Trust</th><th>Source</th><th>Actions</th></tr></thead>
+                        <tbody id="nodes-table"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Edges Tab -->
+            <div id="tab-edges" class="tab-content">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h4>Edges</h4>
+                    <button class="btn btn-accent btn-sm" onclick="addEdgeModal()">+ Add Edge</button>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-dark table-hover">
+                        <thead><tr><th>From</th><th>To</th><th>Label</th><th>Trust</th><th>Actions</th></tr></thead>
+                        <tbody id="edges-table"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Reports Tab -->
+            <div id="tab-reports" class="tab-content">
+                <h4 class="mb-3">Reports & Export</h4>
+                <div class="row g-3 mb-4">
+                    <div class="col-md-4">
+                        <div class="card investigation-card" onclick="exportReport('json')">
+                            <div class="card-body text-center py-4">
+                                <div class="fs-1 mb-2">📋</div>
+                                <h5>JSON Export</h5>
+                                <small class="text-muted">Machine-readable format</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card investigation-card" onclick="exportReport('html')">
+                            <div class="card-body text-center py-4">
+                                <div class="fs-1 mb-2">🌐</div>
+                                <h5>HTML Report</h5>
+                                <small class="text-muted">Formatted browser report</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card investigation-card" onclick="exportReport('markdown')">
+                            <div class="card-body text-center py-4">
+                                <div class="fs-1 mb-2">📝</div>
+                                <h5>Markdown</h5>
+                                <small class="text-muted">Plain text documentation</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-header">Report Preview</div>
+                    <div class="card-body">
+                        <div class="report-preview" id="report-preview">
+                            <p class="text-muted">Select an investigation and generate a report.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Terminal Tab -->
+            <div id="tab-terminal" class="tab-content">
+                <h4 class="mb-3">Web Terminal</h4>
+                <div class="terminal-output" id="terminal-output">
+                    <span style="color:#6366f1">🕷️ OsintHAM Terminal v0.1.0</span>
+                    <span style="color:#64748b"> — Type 'help' for commands</span>
+                </div>
+                <div class="input-group mt-2">
+                    <span class="input-group-text terminal-input" style="border-right:none;">❯</span>
+                    <input type="text" class="form-control terminal-input" id="terminal-input" placeholder="Enter command..." onkeydown="if(event.key==='Enter')executeTerminal()">
+                </div>
+            </div>
+
+        </main>
+    </div>
+</div>
+
+<!-- New Investigation Modal -->
+<div class="modal fade" id="newInvModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content bg-dark">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title">New Investigation</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="text" class="form-control mb-3" id="new-inv-title" placeholder="Title...">
+                <textarea class="form-control" id="new-inv-desc" placeholder="Description..." rows="3"></textarea>
+            </div>
+            <div class="modal-footer border-secondary">
+                <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button class="btn btn-accent" onclick="createInvestigation()">Create</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Node Modal -->
+<div class="modal fade" id="addNodeModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content bg-dark">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title">Add Node</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <select class="form-select mb-3" id="node-type">
+                    <option value="person">👤 Person</option>
+                    <option value="email">📧 Email</option>
+                    <option value="phone">📱 Phone</option>
+                    <option value="social_account">🌐 Social Account</option>
+                    <option value="organization">🏢 Organization</option>
+                    <option value="domain">🔗 Domain</option>
+                    <option value="ip">📍 IP Address</option>
+                    <option value="event">📅 Event</option>
+                    <option value="document">📄 Document</option>
+                </select>
+                <input type="text" class="form-control mb-3" id="node-label" placeholder="Label *">
+                <label class="text-muted small">Trust Level: <span id="trust-val">3</span>/5</label>
+                <input type="range" class="form-range" id="node-trust" min="1" max="5" value="3" oninput="document.getElementById('trust-val').innerText=this.value">
+                <input type="text" class="form-control mt-3" id="node-source" placeholder="Source (optional)">
+            </div>
+            <div class="modal-footer border-secondary">
+                <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button class="btn btn-accent" onclick="saveNode()">Add Node</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Edge Modal -->
+<div class="modal fade" id="addEdgeModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content bg-dark">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title">Add Connection</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <select class="form-select mb-3" id="edge-from"></select>
+                <select class="form-select mb-3" id="edge-to"></select>
+                <input type="text" class="form-control mb-3" id="edge-label" placeholder="Relationship (e.g., owns, related to)">
+                <label class="text-muted small">Trust Level: <span id="edge-trust-val">3</span>/5</label>
+                <input type="range" class="form-range" id="edge-trust" min="1" max="5" value="3" oninput="document.getElementById('edge-trust-val').innerText=this.value">
+            </div>
+            <div class="modal-footer border-secondary">
+                <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button class="btn btn-accent" onclick="saveEdge()">Add Edge</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+// ── Data Store ──
+let investigations = JSON.parse(localStorage.getItem('osintham_investigations') || '[]');
+let currentInvId = localStorage.getItem('osintham_current') || null;
+let cy = null;
+
+const NODE_COLORS = {
+    person: '#8b5cf6', email: '#ef4444', phone: '#f97316',
+    social_account: '#10b981', organization: '#06b6d4',
+    domain: '#f59e0b', ip: '#ec4899', event: '#6366f1', document: '#64748b'
+};
+
+// ── Init ──
+function init() {
+    if (!investigations.length) {
+        // Create demo investigation
+        const demo = {
+            id: 'demo-' + Date.now(),
+            title: 'Demo Investigation',
+            description: 'Sample investigation to demonstrate OsintHAM features',
+            status: 'active',
+            nodes: [
+                { id: 'n1', type: 'email', label: 'target@example.com', trust_level: 5, source: 'User input', data: {} },
+                { id: 'n2', type: 'person', label: 'John Doe', trust_level: 3, source: 'LinkedIn', data: { occupation: 'Engineer' } },
+                { id: 'n3', type: 'social_account', label: 'Twitter: @johndoe', trust_level: 4, source: 'Twitter search', data: {} },
+                { id: 'n4', type: 'phone', label: '+1-555-0123', trust_level: 2, source: 'Data breach', data: {} },
+                { id: 'n5', type: 'domain', label: 'example.com', trust_level: 4, source: 'WHOIS', data: {} },
+            ],
+            edges: [
+                { id: 'e1', from: 'n1', to: 'n2', label: 'belongs to', trust_level: 3 },
+                { id: 'e2', from: 'n2', to: 'n3', label: 'owns', trust_level: 4 },
+                { id: 'e3', from: 'n2', to: 'n4', label: 'uses', trust_level: 2 },
+                { id: 'e4', from: 'n2', to: 'n5', label: 'registered', trust_level: 3 },
+            ],
+            created_at: new Date().toISOString(),
+        };
+        investigations.push(demo);
+        saveData();
+    }
+    renderDashboard();
+    if (currentInvId) {
+        const inv = investigations.find(i => i.id === currentInvId);
+        if (inv) openInvestigation(currentInvId);
+    }
+}
+
+function saveData() {
+    localStorage.setItem('osintham_investigations', JSON.stringify(investigations));
+    localStorage.setItem('osintham_current', currentInvId || '');
+}
+
+// ── Navigation ──
+function showTab(tab) {
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    document.getElementById('tab-' + tab).classList.add('active');
+    document.querySelectorAll('.sidebar-nav .nav-link').forEach(l => l.classList.remove('active'));
+    if (event && event.target) event.target.classList.add('active');
+}
+
+function showNewInvModal() { new bootstrap.Modal(document.getElementById('newInvModal')).show(); }
+
+// ── Dashboard ──
+function renderDashboard() {
+    const grid = document.getElementById('inv-grid');
+    const list = document.getElementById('inv-list');
+    if (!investigations.length) {
+        grid.innerHTML = '<div class="col-12 text-center py-5"><h3 class="text-muted">No investigations yet</h3><p class="text-muted">Create your first investigation to get started</p></div>';
+        return;
+    }
+    grid.innerHTML = investigations.map(inv => `
+        <div class="col-md-4">
+            <div class="card investigation-card" onclick="openInvestigation('${inv.id}')">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <h5 class="card-title">${inv.title}</h5>
+                        <span class="trust-badge trust-${inv.status === 'active' ? 5 : 3}">${inv.status}</span>
+                    </div>
+                    <p class="card-text text-muted small">${inv.description || 'No description'}</p>
+                    <div class="d-flex gap-3 text-muted small">
+                        <span>${inv.nodes.length} nodes</span>
+                        <span>${inv.edges.length} edges</span>
+                        <span>${new Date(inv.created_at).toLocaleDateString()}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `).join('');
+
+    list.innerHTML = investigations.map(inv => `
+        <li class="nav-item"><a class="nav-link ${inv.id === currentInvId ? 'active' : ''}" href="#" onclick="openInvestigation('${inv.id}')">${inv.title}</a></li>
+    `).join('');
+}
+
+function createInvestigation() {
+    const title = document.getElementById('new-inv-title').value.trim();
+    const desc = document.getElementById('new-inv-desc').value.trim();
+    if (!title) return;
+
+    const inv = {
+        id: 'inv-' + Date.now(),
+        title, description: desc, status: 'active',
+        nodes: [], edges: [],
+        created_at: new Date().toISOString(),
+    };
+    investigations.push(inv);
+    saveData();
+    bootstrap.Modal.getInstance(document.getElementById('newInvModal')).hide();
+    document.getElementById('new-inv-title').value = '';
+    document.getElementById('new-inv-desc').value = '';
+    openInvestigation(inv.id);
+    log('Created investigation: ' + title);
+}
+
+function openInvestigation(id) {
+    currentInvId = id;
+    saveData();
+    const inv = investigations.find(i => i.id === id);
+    if (!inv) return;
+
+    document.getElementById('current-inv-title').innerText = inv.title;
+    document.getElementById('current-inv-title').style.display = '';
+    document.getElementById('main-sidebar').style.display = '';
+
+    renderDashboard();
+    renderGraph();
+    renderNodesTable();
+    renderEdgesTable();
+    showTab('graph');
+    log('Opened investigation: ' + inv.title);
+}
+
+// ── Graph ──
+function renderGraph() {
+    const inv = investigations.find(i => i.id === currentInvId);
+    if (!inv) return;
+
+    const container = document.getElementById('graph-container');
+    const elements = [];
+
+    inv.nodes.forEach(n => {
+        elements.push({ data: { id: n.id, label: n.label, color: NODE_COLORS[n.type] || '#6366f1', type: n.type } });
+    });
+    inv.edges.forEach(e => {
+        elements.push({ data: { id: e.id, source: e.from, target: e.to, label: e.label } });
+    });
+
+    if (cy) cy.destroy();
+
+    cy = cytoscape({
+        container,
+        elements,
+        style: [
+            { selector: 'node', style: {
+                'background-color': 'data(color)', 'label': 'data(label)',
+                'text-valign': 'center', 'text-halign': 'center',
+                'color': '#fff', 'font-size': '11px',
+                'text-outline-color': '#000', 'text-outline-width': '2px',
+                'width': 40, 'height': 40, 'border-width': 2, 'border-color': '#fff'
+            }},
+            { selector: 'edge', style: {
+                'width': 2, 'line-color': '#475569',
+                'target-arrow-color': '#475569', 'target-arrow-shape': 'triangle',
+                'curve-style': 'bezier', 'label': 'data(label)',
+                'font-size': '9px', 'color': '#94a3b8',
+                'text-background-color': '#1e293b', 'text-background-opacity': 1, 'text-background-padding': '2px'
+            }},
+        ],
+        layout: { name: 'cose', padding: 20, nodeRepulsion: 4000, idealEdgeLength: 100 },
+        minZoom: 0.3, maxZoom: 3,
+    });
+
+    document.getElementById('stat-nodes').innerText = inv.nodes.length;
+    document.getElementById('stat-edges').innerText = inv.edges.length;
+}
+
+function fitGraph() { if (cy) cy.fit(); }
+
+// ── Nodes ──
+function renderNodesTable() {
+    const inv = investigations.find(i => i.id === currentInvId);
+    if (!inv) return;
+    document.getElementById('nodes-table').innerHTML = inv.nodes.map(n => `
+        <tr>
+            <td><span class="node-type-badge" style="background:${NODE_COLORS[n.type]||'#6366f1'}20;color:${NODE_COLORS[n.type]||'#6366f1'}">${n.type}</span></td>
+            <td>${n.label}</td>
+            <td><span class="trust-badge trust-${n.trust_level}">${'⭐'.repeat(n.trust_level)}</span></td>
+            <td>${n.source || '-'}</td>
+            <td><button class="btn btn-sm btn-outline-danger" onclick="deleteNode('${n.id}')">✕</button></td>
+        </tr>
+    `).join('');
+}
+
+function addNodeModal() {
+    if (!currentInvId) { alert('Select an investigation first'); return; }
+    new bootstrap.Modal(document.getElementById('addNodeModal')).show();
+}
+
+function saveNode() {
+    const inv = investigations.find(i => i.id === currentInvId);
+    if (!inv) return;
+    const label = document.getElementById('node-label').value.trim();
+    if (!label) return;
+
+    inv.nodes.push({
+        id: 'n-' + Date.now(),
+        type: document.getElementById('node-type').value,
+        label,
+        trust_level: parseInt(document.getElementById('node-trust').value),
+        source: document.getElementById('node-source').value.trim(),
+        data: {},
+    });
+    saveData();
+    bootstrap.Modal.getInstance(document.getElementById('addNodeModal')).hide();
+    document.getElementById('node-label').value = '';
+    renderGraph();
+    renderNodesTable();
+    log('Added node: ' + label);
+}
+
+function deleteNode(nodeId) {
+    if (!confirm('Delete this node?')) return;
+    const inv = investigations.find(i => i.id === currentInvId);
+    if (!inv) return;
+    inv.nodes = inv.nodes.filter(n => n.id !== nodeId);
+    inv.edges = inv.edges.filter(e => e.from !== nodeId && e.to !== nodeId);
+    saveData();
+    renderGraph();
+    renderNodesTable();
+    renderEdgesTable();
+    log('Deleted node');
+}
+
+// ── Edges ──
+function renderEdgesTable() {
+    const inv = investigations.find(i => i.id === currentInvId);
+    if (!inv) return;
+    document.getElementById('edges-table').innerHTML = inv.edges.map(e => {
+        const fromNode = inv.nodes.find(n => n.id === e.from);
+        const toNode = inv.nodes.find(n => n.id === e.to);
+        return `<tr>
+            <td>${fromNode ? fromNode.label : e.from}</td>
+            <td>${toNode ? toNode.label : e.to}</td>
+            <td>${e.label || '-'}</td>
+            <td><span class="trust-badge trust-${e.trust_level}">${'⭐'.repeat(e.trust_level)}</span></td>
+            <td><button class="btn btn-sm btn-outline-danger" onclick="deleteEdge('${e.id}')">✕</button></td>
+        </tr>`;
+    }).join('');
+}
+
+function addEdgeModal() {
+    if (!currentInvId) { alert('Select an investigation first'); return; }
+    const inv = investigations.find(i => i.id === currentInvId);
+    if (!inv || inv.nodes.length < 2) { alert('Need at least 2 nodes to create an edge'); return; }
+
+    const opts = inv.nodes.map(n => `<option value="${n.id}">${n.label}</option>`).join('');
+    document.getElementById('edge-from').innerHTML = opts;
+    document.getElementById('edge-to').innerHTML = opts;
+    new bootstrap.Modal(document.getElementById('addEdgeModal')).show();
+}
+
+function saveEdge() {
+    const inv = investigations.find(i => i.id === currentInvId);
+    if (!inv) return;
+    const from = document.getElementById('edge-from').value;
+    const to = document.getElementById('edge-to').value;
+    if (!from || !to || from === to) { alert('Select two different nodes'); return; }
+
+    inv.edges.push({
+        id: 'e-' + Date.now(),
+        from, to,
+        label: document.getElementById('edge-label').value.trim() || 'related to',
+        trust_level: parseInt(document.getElementById('edge-trust').value),
+    });
+    saveData();
+    bootstrap.Modal.getInstance(document.getElementById('addEdgeModal')).hide();
+    document.getElementById('edge-label').value = '';
+    renderGraph();
+    renderEdgesTable();
+    log('Added edge: ' + from + ' → ' + to);
+}
+
+function deleteEdge(edgeId) {
+    const inv = investigations.find(i => i.id === currentInvId);
+    if (!inv) return;
+    inv.edges = inv.edges.filter(e => e.id !== edgeId);
+    saveData();
+    renderGraph();
+    renderEdgesTable();
+    log('Deleted edge');
+}
+
+// ── Reports ──
+function exportReport(format) {
+    const inv = investigations.find(i => i.id === currentInvId);
+    if (!inv) { alert('Select an investigation first'); return; }
+
+    const report = {
+        title: inv.title,
+        description: inv.description,
+        generated_at: new Date().toISOString(),
+        nodes: inv.nodes,
+        edges: inv.edges,
+        summary: {
+            total_nodes: inv.nodes.length,
+            total_edges: inv.edges.length,
+            node_types: inv.nodes.reduce((acc, n) => { acc[n.type] = (acc[n.type] || 0) + 1; return acc; }, {}),
+        }
+    };
+
+    let content, filename, type;
+    if (format === 'json') {
+        content = JSON.stringify(report, null, 2);
+        filename = 'osintham_report.json';
+        type = 'application/json';
+    } else if (format === 'html') {
+        content = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>OsintHAM Report</title>
+        <style>body{font-family:sans-serif;max-width:800px;margin:0 auto;padding:2rem;background:#f8f9fa}
+        h1{color:#1e293b;border-bottom:3px solid #6366f1;padding-bottom:.5rem}
+        .node-card,.edge-card{background:#fff;border-radius:8px;padding:1rem;margin:.5rem 0;box-shadow:0 1px 3px rgba(0,0,0,.1)}
+        .badge{background:#6366f1;color:#fff;padding:2px 8px;border-radius:12px;font-size:.75rem}
+        table{width:100%;border-collapse:collapse}td{padding:4px 8px;border-bottom:1px solid #e2e8f0}</style></head>
+        <body><h1>🕷️ OsintHAM Report: ${inv.title}</h1>
+        <p>Generated: ${new Date().toLocaleString()}</p>
+        <h2>Nodes (${inv.nodes.length})</h2>
+        ${inv.nodes.map(n => `<div class="node-card"><h3>${n.label} <span class="badge">${n.type}</span></h3><p>Trust: ${'⭐'.repeat(n.trust_level)} | Source: ${n.source || 'N/A'}</p></div>`).join('')}
+        <h2>Edges (${inv.edges.length})</h2>
+        ${inv.edges.map(e => `<div class="edge-card"><p>${e.from} → ${e.to} [${e.label || 'related'}]</p></div>`).join('')}
+        </body></html>`;
+        filename = 'osintham_report.html';
+        type = 'text/html';
+    } else {
+        content = `# OsintHAM Report: ${inv.title}\n\nGenerated: ${new Date().toLocaleString()}\n\n## Nodes (${inv.nodes.length})\n\n| Type | Label | Trust | Source |\n|------|-------|-------|--------|\n${inv.nodes.map(n => `| ${n.type} | ${n.label} | ${'⭐'.repeat(n.trust_level)} | ${n.source || '-'} |`).join('\n')}\n\n## Edges (${inv.edges.length})\n\n| From | To | Label | Trust |\n|------|----|-------|-------|\n${inv.edges.map(e => `| ${e.from} | ${e.to} | ${e.label || '-'} | ${'⭐'.repeat(e.trust_level)} |`).join('\n')}`;
+        filename = 'osintham_report.md';
+        type = 'text/markdown';
+    }
+
+    const blob = new Blob([content], { type });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename; a.click();
+
+    document.getElementById('report-preview').innerHTML = '<pre style="white-space:pre-wrap;max-height:400px;overflow:auto">' + content.substring(0, 2000) + '...</pre>';
+    log('Exported ' + format.toUpperCase() + ' report');
+}
+
+// ── Terminal ──
+const TERMINAL_COMMANDS = {
+    help: () => `Available commands:
+  help          Show this help
+  clear         Clear terminal
+  status        Show investigation status
+  nodes         List all nodes
+  edges         List all edges
+  stats         Show graph statistics
+  find <query>  Search nodes by label
+  whois <domain>  Simulate WHOIS lookup
+  ping <host>   Simulate ping
+  hash <text>   Generate hash of text
+  base64 <text> Base64 encode
+  decode <text> Base64 decode
+  ipinfo <ip>   Simulate IP info
+  email <addr>  Analyze email
+  phone <num>   Analyze phone`,
+    clear: '__CLEAR__',
+    status: () => {
+        const inv = investigations.find(i => i.id === currentInvId);
+        if (!inv) return 'No investigation selected.';
+        return `Investigation: ${inv.title}\nStatus: ${inv.status}\nNodes: ${inv.nodes.length}\nEdges: ${inv.edges.length}`;
+    },
+    nodes: () => {
+        const inv = investigations.find(i => i.id === currentInvId);
+        if (!inv) return 'No investigation selected.';
+        return inv.nodes.map(n => `  [${n.type}] ${n.label} (trust: ${n.trust_level}/5)`).join('\n') || 'No nodes.';
+    },
+    edges: () => {
+        const inv = investigations.find(i => i.id === currentInvId);
+        if (!inv) return 'No investigation selected.';
+        return inv.edges.map(e => `  ${e.from} → ${e.to} [${e.label || 'related'}]`).join('\n') || 'No edges.';
+    },
+    stats: () => {
+        const inv = investigations.find(i => i.id === currentInvId);
+        if (!inv) return 'No investigation selected.';
+        return `Graph Statistics:\n  Nodes: ${inv.nodes.length}\n  Edges: ${inv.edges.length}\n  Density: ${inv.nodes.length > 1 ? (2 * inv.edges.length / (inv.nodes.length * (inv.nodes.length - 1))).toFixed(3) : 0}`;
+    },
+    find: (args) => {
+        const query = args.slice(1).join(' ').toLowerCase();
+        if (!query) return 'Usage: find <query>';
+        const inv = investigations.find(i => i.id === currentInvId);
+        if (!inv) return 'No investigation selected.';
+        const matches = inv.nodes.filter(n => n.label.toLowerCase().includes(query));
+        return matches.length ? matches.map(n => `  [${n.type}] ${n.label}`).join('\n') : `No matches for "${query}"`;
+    },
+    whois: (args) => {
+        if (!args[1]) return 'Usage: whois <domain>';
+        return `WHOIS: ${args[1]}\nRegistrar: Example Inc.\nCreated: 2020-01-15\nStatus: active\n[Simulated]`;
+    },
+    ping: (args) => {
+        if (!args[1]) return 'Usage: ping <host>';
+        return `PING ${args[1]}: 64 bytes, 12.3ms\n[Simulated]`;
+    },
+    hash: (args) => {
+        const text = args.slice(1).join(' ');
+        if (!text) return 'Usage: hash <text>';
+        let h = 0;
+        for (let i = 0; i < text.length; i++) { h = ((h << 5) - h) + text.charCodeAt(i); h = h & h; }
+        return `Hash: "${text}"\nMD5: ${Math.abs(h).toString(16).padStart(32, '0')}\n[Simulated]`;
+    },
+    base64: (args) => {
+        const text = args.slice(1).join(' ');
+        if (!text) return 'Usage: base64 <text>';
+        return `Base64: ${btoa(text)}`;
+    },
+    decode: (args) => {
+        const text = args.slice(1).join(' ');
+        if (!text) return 'Usage: decode <base64>';
+        try { return `Decoded: ${atob(text)}`; } catch { return 'Error: Invalid Base64'; }
+    },
+    ipinfo: (args) => {
+        if (!args[1]) return 'Usage: ipinfo <ip>';
+        return `IP: ${args[1]}\nCountry: US\nCity: New York\nISP: Example Corp\n[Simulated]`;
+    },
+    email: (args) => {
+        if (!args[1]) return 'Usage: email <address>';
+        const [user, domain] = args[1].split('@');
+        return `Email: ${args[1]}\nUser: ${user || 'N/A'}\nDomain: ${domain || 'N/A'}\n[Simulated]`;
+    },
+    phone: (args) => {
+        if (!args[1]) return 'Usage: phone <number>';
+        return `Phone: ${args[1]}\nCountry: +1\nType: Mobile\n[Simulated]`;
+    },
+};
+
+function executeTerminal() {
+    const input = document.getElementById('terminal-input');
+    const output = document.getElementById('terminal-output');
+    const cmd = input.value.trim();
+    if (!cmd) return;
+
+    output.innerHTML += `\n<span style="color:#6366f1">❯ ${cmd}</span>`;
+    input.value = '';
+
+    const parts = cmd.split(/\s+/);
+    const handler = TERMINAL_COMMANDS[parts[0].toLowerCase()];
+    if (handler) {
+        const result = handler(parts);
+        if (result === '__CLEAR__') {
+            output.innerHTML = '<span style="color:#6366f1">🕷️ OsintHAM Terminal v0.1.0</span>';
+        } else {
+            output.innerHTML += `\n${result}`;
+        }
+    } else {
+        output.innerHTML += `\n<span style="color:#ef4444">Command not found: ${parts[0]}. Type 'help'.</span>`;
+    }
+    output.scrollTop = output.scrollHeight;
+}
+
+// ── Log ──
+function log(msg) {
+    const panel = document.getElementById('log-panel');
+    const time = new Date().toLocaleTimeString();
+    panel.innerHTML += `<div class="log-entry"><span class="log-time">[${time}]</span>${msg}</div>`;
+    panel.scrollTop = panel.scrollHeight;
+}
+
+// ── Start ──
+init();
+</script>
+</body>
+</html>
