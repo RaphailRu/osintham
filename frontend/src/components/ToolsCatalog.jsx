@@ -1,9 +1,9 @@
 import React, { useState } from 'react'
-import { 
-  Search, Filter, Star, Download, Play, Pause, 
+import {
+  Search, Filter, Star, Download, Play, Pause,
   Settings, Zap, Globe, Mail, Phone, User, Building,
   Hash, Calendar, FileText, Link as LinkIcon, Database,
-  Eye, Edit, Trash2
+  Eye, Edit, Trash2, Network, X
 } from 'lucide-react'
 import useStore from '../store'
 

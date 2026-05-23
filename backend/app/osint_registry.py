@@ -35,7 +35,6 @@ TOOLS_REGISTRY = [
     OsintTool(
         name="Sherlock", slug="sherlock",
         category="username_search",
-        username="sherlock-project", repo="sherlock",
         description="Hunt down social media accounts by username across 400+ sites",
         url="https://sherlock-project.github.io",
         github="sherlock-project/sherlock",
@@ -46,7 +45,6 @@ TOOLS_REGISTRY = [
     OsintTool(
         name="Maigret", slug="maigret",
         category="username_search",
-        username="soxoj", repo="maigret",
         description="Collect a dossier on a person by username from 1000+ sites",
         url="https://maigret.readthedocs.io",
         github="soxoj/maigret",
@@ -57,7 +55,6 @@ TOOLS_REGISTRY = [
     OsintTool(
         name="Holehe", slug="holehe",
         category="username_search",
-        username="megadose", repo="holehe",
         description="Check if email is registered on various sites",
         url="",
         github="megadose/holehe",
@@ -68,7 +65,6 @@ TOOLS_REGISTRY = [
     OsintTool(
         name="Osintgram", slug="osintgram",
         category="username_search",
-        username="Datalux", repo="Osintgram",
         description="Instagram OSINT tool — collect account info, followers, tags",
         url="",
         github="Datalux/Osintgram",
@@ -78,7 +74,6 @@ TOOLS_REGISTRY = [
     OsintTool(
         name="X-osint", slug="x-osint",
         category="username_search",
-        username="TermuxHackz", repo="X-osint",
         description="Twitter/X OSINT tool for profile analysis",
         url="",
         github="TermuxHackz/X-osint",

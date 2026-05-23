@@ -1,5 +1,4 @@
 import React from 'react'
-import useStore from '../store'
 
 const TRUST_LABELS = {
   1: { text: 'Rumor', color: 'bg-red-500' },

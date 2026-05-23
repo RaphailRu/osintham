@@ -2,10 +2,9 @@ import React, { useEffect, useRef, useState, useCallback } from 'react'
 import { useParams } from 'react-router-dom'
 import cytoscape from 'cytoscape'
 import dagre from 'cytoscape-dagre'
-import dagreLib from 'dagre'
 import {
   Plus, ZoomIn, ZoomOut, Maximize2, X, Save, Search,
-  User, Mail, Phone, Globe, Building, Hash, Calendar, FileText, Link as LinkIcon
+  Link as LinkIcon
 } from 'lucide-react'
 import useStore from '../store'
 import { getGraph, createNode, createEdge, deleteNode, deleteEdge, getTemplates } from '../api'
@@ -16,18 +15,6 @@ import TrustBadge from '../components/TrustBadge'
 import OsintScanner from '../components/OsintScanner'
 
 cytoscape.use(dagre)
-
-const NODE_ICONS = {
-  person: User,
-  email: Mail,
-  phone: Phone,
-  social_account: Globe,
-  organization: Building,
-  domain: Globe,
-  ip: Hash,
-  event: Calendar,
-  document: FileText,
-}
 
 const NODE_COLORS = {
   person: '#8b5cf6',
@@ -53,7 +40,6 @@ export default function Investigation() {
   const [showNodeEditor, setShowNodeEditor] = useState(false)
   const [showEdgeEditor, setShowEdgeEditor] = useState(false)
   const [showOsintTab, setShowOsintTab] = useState(false)
-  const [editingNode, setEditingNode] = useState(null)
   const [connectingFrom, setConnectingFrom] = useState(null)
 
   // Load graph data

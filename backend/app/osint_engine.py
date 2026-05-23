@@ -146,7 +146,7 @@ async def scan_email(email: str) -> dict:
             result["errors"].append(f"HIBP: {str(e)}")
 
     # Social media check (email-based)
-    if HAS_HTTPUX:
+    if HAS_HTTPX:
         social_checks = await _check_email_social(email, user)
         result["social_accounts"] = social_checks
 

@@ -1,16 +1,18 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef } from 'react'
 import { X, CheckCircle, AlertCircle, AlertTriangle, Info } from 'lucide-react'
 import useStore from '../store'
 
 export default function ToastContainer() {
   const { notifications, removeNotification } = useStore()
-  
+  const timerRef = useRef(null)
+
   const getIcon = (type) => {
     switch (type) {
       case 'success': return <CheckCircle className="w-4 h-4" />
       case 'error': return <AlertCircle className="w-4 h-4" />
       case 'warning': return <AlertTriangle className="w-4 h-4" />
-      case 'info': default: return <Info className="w-4 h-4" />
+      case 'info': return <Info className="w-4 h-4" />
+      default: return <Info className="w-4 h-4" />
     }
   }
 
@@ -19,18 +21,21 @@ export default function ToastContainer() {
       case 'success': return 'bg-green-500/90'
       case 'error': return 'bg-red-500/90'
       case 'warning': return 'bg-yellow-500/90'
-      case 'info': default: return 'bg-blue-500/90'
+      case 'info': return 'bg-blue-500/90'
+      default: return 'bg-blue-500/90'
     }
   }
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      if (notifications.length > 0) {
+    if (timerRef.current) clearTimeout(timerRef.current)
+    if (notifications.length > 0) {
+      timerRef.current = setTimeout(() => {
         removeNotification(notifications[0].id)
-      }
-    }, 5000)
-
-    return () => clearTimeout(timer)
+      }, 5000)
+    }
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current)
+    }
   }, [notifications, removeNotification])
 
   if (notifications.length === 0) return null

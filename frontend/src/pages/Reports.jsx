@@ -46,6 +46,7 @@ export default function Reports() {
       a.href = url
       a.download = `osintham_report_${id.slice(0, 8)}.html`
       a.click()
+      URL.revokeObjectURL(url)
       addLog('Downloaded HTML report')
     } catch (err) {
       addLog(`Error: ${err.message}`)
@@ -61,6 +62,7 @@ export default function Reports() {
       a.href = url
       a.download = `osintham_report_${id.slice(0, 8)}.md`
       a.click()
+      URL.revokeObjectURL(url)
       addLog('Downloaded Markdown report')
     } catch (err) {
       addLog(`Error: ${err.message}`)

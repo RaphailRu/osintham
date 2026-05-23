@@ -1,11 +1,10 @@
 import React, { useState } from 'react'
-import { 
-  Settings, X, Save, Moon, Sun, Bell, Save as SaveIcon, 
+import {
+  Settings, X, Save, Moon, Sun, Bell, Save as SaveIcon,
   Key, Database, Download, Upload, Trash2, RotateCcw,
-  Server, Wifi, Shield, Zap
+  Server, Wifi, Shield, Zap, Plus
 } from 'lucide-react'
 import useStore from '../store'
-import { getSettings, updateSettings, exportData, importData } from '../api'
 
 export default function SettingsPanel() {
   const { 
@@ -30,7 +29,6 @@ export default function SettingsPanel() {
   const handleSaveSettings = async () => {
     setIsLoading(true)
     try {
-      await updateSettings(tempSettings)
       updateSettings(tempSettings)
       addNotification({
         type: 'success',
@@ -51,7 +49,7 @@ export default function SettingsPanel() {
   const handleExport = async () => {
     setIsExporting(true)
     try {
-      const data = await exportData()
+      const data = { settings, apiKeys, scannerConfig, exportedAt: new Date().toISOString() }
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
@@ -59,9 +57,9 @@ export default function SettingsPanel() {
       a.download = `osintham-export-${new Date().toISOString().split('T')[0]}.json`
       document.body.appendChild(a)
       a.click()
-      document.body.removeChild(a)
       URL.revokeObjectURL(url)
-      
+      document.body.removeChild(a)
+
       addNotification({
         type: 'success',
         title: 'Export Complete',
@@ -86,8 +84,10 @@ export default function SettingsPanel() {
     try {
       const text = await file.text()
       const data = JSON.parse(text)
-      await importData(data)
-      
+      if (data.settings) updateSettings(data.settings)
+      if (data.apiKeys) setApiKeys(data.apiKeys)
+      if (data.scannerConfig) setScannerConfig(data.scannerConfig)
+
       addNotification({
         type: 'success',
         title: 'Import Complete',

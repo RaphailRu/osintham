@@ -26,6 +26,8 @@ except ImportError:
     HAS_WHOIS = False
 
 from . import _client, ScanResult
+import ssl
+import socket
 
 
 async def scan_domain(domain: str) -> Dict[str, Any]:

@@ -1,5 +1,6 @@
 """OsintHAM — OSINT Scanner API Router v4 (Modular)"""
 import json
+import re
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
@@ -246,8 +247,8 @@ async def add_scan_to_graph(investigation_id: str, scan_result: dict):
                 # Add edge
                 edge = EdgeModel(
                     investigation_id=investigation_id,
-                    source_id=main_node.id,
-                    target_id=node.id,
+                    from_node=main_node.id,
+                    to_node=node.id,
                     label="found_on"
                 )
                 db.add(edge)
