@@ -5,27 +5,44 @@ import useStore from '../store'
 
 const HELP_TEXT = `
 ╔══════════════════════════════════════════════════════╗
-║           OsintHAM Web Terminal v0.1.0               ║
+║           OsintHAM Web Terminal v0.2.0               ║
 ╠══════════════════════════════════════════════════════╣
-║  Commands:                                           ║
+║  Graph Commands:                                     ║
 ║    help          — Show this help                    ║
 ║    clear         — Clear terminal                    ║
 ║    status        — Show investigation status         ║
 ║    nodes         — List all nodes                    ║
 ║    edges         — List all edges                    ║
 ║    stats         — Show graph statistics             ║
-║    export json   — Export as JSON                    ║
-║    export html   — Export as HTML                    ║
 ║    find <query>  — Search nodes by label             ║
-║    whois <domain> — Simulate WHOIS lookup            ║
-║    ping <ip>     — Simulate ping                     ║
-║    nslookup <d>  — Simulate DNS lookup               ║
-║    hash <text>   — Generate hash of text             ║
-║    base64 <text> — Base64 encode                     ║
-║    decode <text> — Base64 decode                     ║
-║    ipinfo <ip>   — Simulate IP info lookup           ║
-║    email <addr>  — Analyze email address             ║
-║    phone <num>   — Analyze phone number              ║
+║    export json   — Export as JSON                    ║
+╠══════════════════════════════════════════════════════╣
+║  OSINT Commands:                                     ║
+║    whois <domain>    — WHOIS lookup                  ║
+║    dns <domain>      — DNS records                   ║
+║    ssl <domain>      — SSL certificate info          ║
+║    subdomains <d>    — Subdomain enumeration         ║
+║    ping <host>       — Ping host                     ║
+║    nslookup <d>      — DNS lookup                    ║
+║    ipinfo <ip>       — IP geolocation                ║
+║    email <addr>      — Analyze email                 ║
+║    phone <num>       — Analyze phone                 ║
+║    hash <text>       — Generate hashes               ║
+║    base64 <text>     — Base64 encode                 ║
+║    decode <text>     — Base64 decode                 ║
+║    ghdb <domain>     — Google Hacking DB queries     ║
+║    shodan <ip>       — Shodan search link            ║
+║    censys <ip>       — Censys search link            ║
+║    hibp <email>      — Have I Been Pwned check       ║
+║    sherlock <user>   — Sherlock username search      ║
+║    maigret <user>    — Maigret username search       ║
+║    holehe <email>    — Holehe email check            ║
+║    snoop <user>      — Snoop (RU platforms)          ║
+║    vk <user>         — VK profile link               ║
+║    ok <user>         — OK profile link               ║
+║    universal <query> — Universal search links        ║
+║    scan <target>     — Full OSINT scan               ║
+║    tools             — OSINT tools catalog           ║
 ╚══════════════════════════════════════════════════════╝
 `
 
@@ -177,15 +194,226 @@ MX Records: mail.${domain || 'example.com'}
   phone: (_, args) => {
     const num = args[1]
     if (!num) return 'Usage: phone <number>'
+    const digits = num.replace(/\D/g, '')
+    const prefixes = { '1': 'US/Canada', '7': 'RU/KZ', '44': 'UK', '49': 'DE', '86': 'CN', '380': 'UA', '375': 'BY', '91': 'IN' }
+    let country = 'Unknown'
+    for (const [p, c] of Object.entries(prefixes)) {
+      if (digits.startsWith(p)) { country = c; break }
+    }
     return `Phone Analysis: ${num}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Format: International
-Country: +1 (simulated)
-Carrier: Example Carrier
-Type: Mobile
-Valid: Yes
-[Simulated analysis]`
+Digits: ${digits}
+Valid: ${digits.length >= 7 && digits.length <= 15 ? 'Yes' : 'No'}
+Country: ${country}
+[Simulated — install backend for live data]`
   },
+  // ── OSINT Commands ──
+  dns: (_, args) => {
+    const domain = args[1]
+    if (!domain) return 'Usage: dns <domain>'
+    return `DNS Lookup: ${domain}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  A:     93.184.216.34
+  AAAA:  2606:2800:220:1:248:1893:25c8:1946
+  MX:    mail.${domain} (priority: 10)
+  NS:    ns1.${domain}
+  TXT:   v=spf1 include:_spf.google.com ~all
+[Simulated — install backend for live DNS]`
+  },
+  ssl: (_, args) => {
+    const domain = args[1]
+    if (!domain) return 'Usage: ssl <domain>'
+    return `SSL Certificate: ${domain}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Issuer:       Let's Encrypt Authority X3
+  Valid From:   2024-01-15
+  Valid To:     2024-04-15
+  Key Type:     RSA 2048-bit
+  Protocol:     TLS 1.3
+[Simulated — install backend for live SSL check]`
+  },
+  subdomains: (_, args) => {
+    const domain = args[1]
+    if (!domain) return 'Usage: subdomains <domain>'
+    return `Subdomain Enumeration: ${domain}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  www.${domain}
+  mail.${domain}
+  ftp.${domain}
+  admin.${domain}
+  api.${domain}
+  blog.${domain}
+  shop.${domain}
+  dev.${domain}
+  vpn.${domain}
+  cdn.${domain}
+[Simulated — install backend for live enumeration]`
+  },
+  ghdb: (_, args) => {
+    const domain = args[1]
+    if (!domain) return 'Usage: ghdb <domain>'
+    return `Google Hacking DB Queries: ${domain}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Emails:    site:${domain} intext:"@" filetype:xls
+  Admin:     site:${domain} inurl:admin
+  Backups:   site:${domain} filetype:bak | filetype:old
+  Config:    site:${domain} filetype:env | filetype:config
+  Database:  site:${domain} filetype:sql | filetype:db
+  Login:     site:${domain} inurl:login | inurl:signin
+  PDFs:      site:${domain} filetype:pdf
+  Errors:    site:${domain} intext:"error" | intext:"warning"
+  GHDB:      https://www.exploit-db.com/google-hacking-database`
+  },
+  shodan: (_, args) => {
+    const ip = args[1]
+    if (!ip) return 'Usage: shodan <ip>'
+    return `Shodan Search: ${ip}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Web:       https://www.shodan.io/host/${ip}
+  Search:    https://www.shodan.io/search?query=${encodeURIComponent(ip)}
+  [Set SHODAN_API_KEY env var for API access]
+  [Install backend for live Shodan data]`
+  },
+  censys: (_, args) => {
+    const ip = args[1]
+    if (!ip) return 'Usage: censys <ip>'
+    return `Censys Search: ${ip}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Hosts:     https://search.censys.io/hosts/${ip}
+  Search:    https://search.censys.io/search?q=${encodeURIComponent(ip)}
+  [Set CENSYS_API_ID and CENSYS_API_SECRET env vars]`
+  },
+  hibp: (_, args) => {
+    const email = args[1]
+    if (!email) return 'Usage: hibp <email>'
+    return `Have I Been Pwned: ${email}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Check:     https://haveibeenpwned.com/account/${encodeURIComponent(email)}
+  API:       Set HIBP_API_KEY env var
+  [Install backend for live HIBP data]`
+  },
+  sherlock: (_, args) => {
+    const user = args[1]
+    if (!user) return 'Usage: sherlock <username>'
+    return `Sherlock: ${user}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  GitHub:    https://github.com/sherlock-project/sherlock
+  Install:   pip install sherlock-project
+  Run:       sherlock ${user}
+  Sites:     400+ platforms
+  Telegram:  @OpenSoucesSearcherUsername_bot`
+  },
+  maigret: (_, args) => {
+    const user = args[1]
+    if (!user) return 'Usage: maigret <username>'
+    return `Maigret: ${user}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  GitHub:    https://github.com/soxoj/maigret
+  Install:   pip install maigret
+  Run:       maigret ${user}
+  Sites:     1000+ platforms
+  [More thorough than Sherlock]`
+  },
+  holehe: (_, args) => {
+    const email = args[1]
+    if (!email) return 'Usage: holehe <email>'
+    return `Holehe: ${email}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  GitHub:    https://github.com/megadose/holehe
+  Install:   pip install holehe
+  Run:       holehe ${email}
+  Checks:    130+ sites for email registration`
+  },
+  snoop: (_, args) => {
+    const user = args[1]
+    if (!user) return 'Usage: snoop <username>'
+    return `Snoop: ${user}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  GitHub:    https://github.com/snooppr/snoop
+  Focus:     RU social networks (VK, OK, etc.)
+  News:      https://myseldon.com
+  [Best for Russian-language OSINT]`
+  },
+  vk: (_, args) => {
+    const user = args[1]
+    if (!user) return 'Usage: vk <user>'
+    return `VKontakte: ${user}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Profile:   https://vk.com/${encodeURIComponent(user)}
+  Tool:      https://github.com/AdrianGuretto/OSINTvk
+  API:       https://vk.com/dev`
+  },
+  ok: (_, args) => {
+    const user = args[1]
+    if (!user) return 'Usage: ok <user>'
+    return `Odnoklassniki: ${user}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Profile:   https://ok.ru/profile/${encodeURIComponent(user)}
+  Tool:      https://github.com/OSINT-mindset/odnoklassniki-checker`
+  },
+  universal: (_, args) => {
+    const query = args.slice(1).join(' ')
+    if (!query) return 'Usage: universal <query>'
+    const q = encodeURIComponent(query)
+    return `Universal Search: "${query}"
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Google:    https://google.com/search?q=${q}
+  DuckDuckGo: https://duckduckgo.com/?q=${q}
+  Yandex:    https://yandex.com/search/?text=${q}
+  Bing:      https://bing.com/search?q=${q}
+  Shodan:    https://shodan.io/search?query=${q}
+  Censys:    https://search.censys.io/search?q=${q}
+  Wayback:   https://web.archive.org/web/*/${q}
+  GHDB:      https://www.exploit-db.com/google-hacking-database`
+  },
+  scan: (_, args) => {
+    const target = args.slice(1).join(' ')
+    if (!target) return 'Usage: scan <target>'
+    const type = target.includes('@') ? 'email' : /^\d+\.\d+\.\d+\.\d+$/.test(target) ? 'ip' : /\.\w{2,}$/.test(target) ? 'domain' : 'username'
+    return `OSINT Scan: ${target}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Type detected: ${type}
+  [✓] Format validation
+  [✓] Social media check (30+ platforms)
+  [✓] DNS records
+  [✓] Subdomain enumeration
+  [✓] SSL certificate
+  [✓] WHOIS lookup
+  [⚠] HIBP: API key required
+  [⚠] Shodan: API key required
+  [Demo mode — install backend for live scanning]`
+  },
+  tools: () => `OSINT Tools Catalog (40+):
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Username Search:
+    Sherlock, Maigret, Snoop, Holehe, X-osint, Osintgram
+
+  Email & Breaches:
+    HIBP, Holehe, LeakCheck, BreachHound
+
+  DNS & Network:
+    DNSDumpster, Shodan, Censys, ExifTool, theHarvester
+
+  Web & Archives:
+    Wayback Machine, Google Earth, GHDB
+
+  Frameworks:
+    SpiderFoot, Recon-ng, theHarvester, Maltego CE
+
+  Search Engines:
+    Intelligence X, Infoooze, Snoop
+
+  Regional (RU/CIS):
+    VK Checker, OK Checker, TeleSINT Bot, Глаз Бога
+
+  Face/Image:
+    PimEyes
+
+  Libraries:
+    Osintplus, Osixr, js-recon, Anastasis, BlackTrace
+
+  Telegram Bots:
+    TeleSINT, PRObivon, UsersBox, unamer_search, UniversalSearchBot`,
 }
 
 export default function TerminalPage() {

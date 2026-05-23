@@ -1,23 +1,15 @@
-"""OsintHAM — OSINT Scanner API Router v2"""
+"""OsintHAM — OSINT Scanner API Router v4 (Modular)"""
 import json
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
+from datetime import datetime
 
 from app.database import get_db, InvestigationModel, NodeModel, EdgeModel
-from app.osint_engine import (
-    validate_email, validate_phone, analyze_domain, analyze_ip,
-    search_username, analyze_url, generate_hashes,
-)
-from app.osint_integrations import (
-    run_sherlock, run_maigret, run_holehe, run_theharvester,
-    check_hibp, check_shodan, check_censys, check_dnsdumpster,
-    check_wayback, check_intelx, run_spiderfoot, run_exiftool,
-    run_recon_ng, run_snoop, run_osintgram, run_x_osint,
-    check_infoooze, check_leakcheck, run_breachhound,
-    get_ghdb_queries, check_pimeyes, check_odnoklassniki, check_vk,
-    get_google_earth_link, universal_search, run_full_osint,
+from app.scanners import (
+    scan_email, scan_domain, scan_ip, scan_username,
+    ScanResult
 )
 
 router = APIRouter(prefix="/api/osint", tags=["osint"])
@@ -28,10 +20,18 @@ class ScanRequest(BaseModel):
     target_type: str = "auto"
     investigation_id: Optional[str] = None
     auto_add_nodes: bool = False
-    enabled_tools: Optional[list] = None
+    enabled_tools: Optional[List[str]] = None
 
 
-def _get_node_color(node_type: str) -> str:
+class ScanResponse(BaseModel):
+    scan_id: str
+    status: str
+    message: str
+    result: Optional[dict] = None
+    errors: List[str] = []
+
+
+def _node_color(node_type: str) -> str:
     colors = {
         "email": "#ef4444", "phone": "#f97316", "person": "#8b5cf6",
         "organization": "#06b6d4", "social_account": "#10b981",
@@ -41,254 +41,223 @@ def _get_node_color(node_type: str) -> str:
     return colors.get(node_type, "#6366f1")
 
 
-# ── Master Scanner ──
-
 @router.post("/scan")
-async def scan_full(req: ScanRequest):
-    """Run full OSINT scan using all applicable tools."""
+async def start_scan(req: ScanRequest, background_tasks: BackgroundTasks):
+    """Run OSINT scan on target."""
     try:
-        tools = req.enabled_tools if req.enabled_tools else None
-        result = await run_full_osint(req.target, req.target_type, tools)
-        return result
+        # Determine scan type
+        target_type = req.target_type
+        if target_type == "auto":
+            if "@" in req.target:
+                target_type = "email"
+            elif re.match(r'^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$', req.target):
+                target_type = "ip"
+            elif re.match(r'^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', req.target):
+                target_type = "domain"
+            elif re.match(r'^[a-zA-Z0-9_.-]{3,30}$', req.target):
+                target_type = "username"
+            else:
+                target_type = "unknown"
+        
+        # Choose scanner
+        scanner_map = {
+            "email": scan_email,
+            "domain": scan_domain,
+            "ip": scan_ip,
+            "username": scan_username,
+        }
+        
+        if target_type not in scanner_map:
+            return ScanResponse(
+                scan_id=f"error_{datetime.now().timestamp()}",
+                status="error",
+                message=f"Unsupported target type: {target_type}",
+                errors=[f"Cannot scan: {req.target}"]
+            )
+        
+        scanner = scanner_map[target_type]
+        
+        # Start scan in background
+        scan_id = f"scan_{datetime.now().timestamp()}"
+        background_tasks.add_task(
+            run_scan_background,
+            scan_id,
+            req.target,
+            target_type,
+            scanner,
+            req.investigation_id,
+            req.auto_add_nodes,
+            req.enabled_tools
+        )
+        
+        return ScanResponse(
+            scan_id=scan_id,
+            status="processing",
+            message=f"Starting {target_type} scan for: {req.target}"
+        )
+        
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Scan failed: {str(e)}")
+        return ScanResponse(
+            scan_id=f"error_{datetime.now().timestamp()}",
+            status="error",
+            message=f"Scan request failed: {str(e)}",
+            errors=[str(e)]
+        )
 
 
-@router.post("/bulk-scan")
-async def bulk_scan(requests: list[ScanRequest]):
-    """Scan multiple targets."""
-    results = []
-    for req in requests:
-        try:
-            tools = req.enabled_tools if req.enabled_tools else None
-            result = await run_full_osint(req.target, req.target_type, tools)
-            results.append(result)
-        except Exception as e:
-            results.append({"target": req.target, "error": str(e)})
-    return {"results": results, "total": len(requests)}
+async def run_scan_background(
+    scan_id: str,
+    target: str,
+    target_type: str,
+    scanner_func,
+    investigation_id: Optional[str],
+    auto_add_nodes: bool,
+    enabled_tools: Optional[List[str]]
+):
+    """Run scan in background and optionally add to graph."""
+    try:
+        result = await scanner_func(target)
+        
+        # Optionally add to graph
+        if auto_add_nodes and investigation_id:
+            await add_scan_to_graph(investigation_id, result)
+        
+        # Save to database (in production: use proper DB)
+        # For now: log to file
+        with open(f"/tmp/osint_scans_{scan_id}.json", "w") as f:
+            json.dump(result, f, indent=2)
+            
+    except Exception as e:
+        # Log error
+        with open(f"/tmp/osint_scans_{scan_id}_error.json", "w") as f:
+            json.dump({"error": str(e)}, f)
 
 
-# ── Individual Tool Endpoints ──
+@router.get("/results/{scan_id}")
+async def get_scan_results(scan_id: str):
+    """Get scan results by ID."""
+    try:
+        # Check if results file exists
+        import os
+        results_file = f"/tmp/osint_scans_{scan_id}.json"
+        if os.path.exists(results_file):
+            with open(results_file) as f:
+                return json.load(f)
+        
+        error_file = f"/tmp/osint_scans_{scan_id}_error.json"
+        if os.path.exists(error_file):
+            with open(error_file) as f:
+                return {"status": "error", "error": json.load(f)["error"]}
+        
+        return {"status": "pending", "message": "Scan is still running"}
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get results: {str(e)}")
 
-@router.get("/sherlock/{username}")
-async def scan_sherlock(username: str):
-    return await run_sherlock(username)
-
-
-@router.get("/maigret/{username}")
-async def scan_maigret(username: str):
-    return await run_maigret(username)
-
-
-@router.get("/holehe/{email}")
-async def scan_holehe(email: str):
-    return await run_holehe(email)
-
-
-@router.get("/theharvester/{domain}")
-async def scan_harvester(domain: str):
-    return await run_theharvester(domain)
-
-
-@router.get("/hibp/{email}")
-async def scan_hibp(email: str):
-    return await check_hibp(email)
-
-
-@router.get("/shodan")
-async def scan_shodan(ip: str = "", domain: str = ""):
-    return await check_shodan(ip=ip, domain=domain)
-
-
-@router.get("/censys")
-async def scan_censys(ip: str = "", domain: str = ""):
-    return await check_censys(ip=ip, domain=domain)
-
-
-@router.get("/dnsdumpster/{domain}")
-async def scan_dnsdumpster(domain: str):
-    return await check_dnsdumpster(domain)
-
-
-@router.get("/wayback")
-async def scan_wayback(url: str = "", domain: str = "", limit: int = 20):
-    return await check_wayback(url=url, domain=domain, limit=limit)
-
-
-@router.get("/intelx/{query}")
-async def scan_intelx(query: str):
-    return await check_intelx(query)
-
-
-@router.get("/spiderfoot/{target}")
-async def scan_spiderfoot(target: str):
-    return await run_spiderfoot(target)
-
-
-@router.get("/exiftool")
-async def scan_exiftool(file_path: str):
-    return await run_exiftool(file_path)
-
-
-@router.get("/recon-ng/{domain}")
-async def scan_recon_ng(domain: str):
-    return await run_recon_ng(domain)
-
-
-@router.get("/snoop/{username}")
-async def scan_snoop(username: str):
-    return await run_snoop(username)
-
-
-@router.get("/osintgram/{username}")
-async def scan_osintgram(username: str):
-    return await run_osintgram(username)
-
-
-@router.get("/x-osint/{target}")
-async def scan_x_osint(target: str):
-    return await run_x_osint(target)
-
-
-@router.get("/infoooze")
-async def scan_infoooze(query: str, query_type: str = "ip"):
-    return await check_infoooze(query, query_type)
-
-
-@router.get("/leakcheck")
-async def scan_leakcheck(query: str, query_type: str = "email"):
-    return await check_leakcheck(query, query_type=query_type)
-
-
-@router.get("/breachhound/{email}")
-async def scan_breachhound(email: str):
-    return await run_breachhound(email)
-
-
-@router.get("/ghdb/{domain}")
-async def scan_ghdb(domain: str):
-    return get_ghdb_queries(domain)
-
-
-@router.get("/pimeyes")
-async def scan_pimeyes(image_url: str = ""):
-    return await check_pimeyes(image_url=image_url)
-
-
-@router.get("/odnoklassniki")
-async def scan_ok(user_id: str = "", name: str = ""):
-    return await check_odnoklassniki(user_id=user_id, name=name)
-
-
-@router.get("/vk")
-async def scan_vk(user_id: str = "", name: str = ""):
-    return await check_vk(user_id=user_id, name=name)
-
-
-@router.get("/google-earth")
-async def google_earth(lat: float = 0, lon: float = 0, zoom: int = 15):
-    return get_google_earth_link(lat, lon, zoom)
-
-
-@router.get("/universal/{query}")
-async def scan_universal(query: str):
-    return await universal_search(query)
-
-
-# ── Legacy v1 Endpoints ──
 
 @router.get("/email/{email}")
-def scan_email(email: str):
-    return validate_email(email)
-
-
-@router.get("/phone/{phone}")
-def scan_phone(phone: str):
-    return validate_phone(phone)
+async def scan_email_endpoint(email: str):
+    """Scan specific email address."""
+    try:
+        result = await scan_email(email)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Email scan failed: {str(e)}")
 
 
 @router.get("/domain/{domain}")
-def scan_domain(domain: str):
-    return analyze_domain(domain)
+async def scan_domain_endpoint(domain: str):
+    """Scan specific domain."""
+    try:
+        result = await scan_domain(domain)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Domain scan failed: {str(e)}")
 
 
 @router.get("/ip/{ip}")
-def scan_ip(ip: str):
-    return analyze_ip(ip)
+async def scan_ip_endpoint(ip: str):
+    """Scan specific IP address."""
+    try:
+        result = await scan_ip(ip)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"IP scan failed: {str(e)}")
 
 
 @router.get("/username/{username}")
-def scan_username(username: str):
-    return search_username(username)
+async def scan_username_endpoint(username: str):
+    """Scan specific username."""
+    try:
+        result = await scan_username(username)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Username scan failed: {str(e)}")
 
 
-@router.get("/url")
-def scan_url(url: str):
-    return analyze_url(url)
-
-
-@router.get("/hash/{text}")
-def get_hashes(text: str):
-    return generate_hashes(text)
-
-
-# ── Auto-Enrichment ──
-
-@router.post("/enrich/{inv_id}")
-async def enrich_investigation(inv_id: str, req: ScanRequest, db: Session = Depends(get_db)):
-    """Scan target and auto-add results to investigation graph."""
-    inv = db.query(InvestigationModel).filter(InvestigationModel.id == inv_id).first()
-    if not inv:
-        raise HTTPException(status_code=404, detail="Investigation not found")
-
-    tools = req.enabled_tools if req.enabled_tools else None
-    scan_result = await run_full_osint(req.target, req.target_type, tools)
-
-    added_nodes = []
-    node_id_map = {}
-
-    for i, node_data in enumerate(scan_result.get("suggested_nodes", [])):
-        node = NodeModel(
-            investigation_id=inv_id,
-            type=node_data.get("type", "person"),
-            label=node_data.get("label", req.target),
-            trust_level=node_data.get("trust_level", 3),
-            data=json.dumps(node_data.get("data", {})),
-            source=node_data.get("source", "OSINT scan"),
-            color=_get_node_color(node_data.get("type", "person")),
-        )
-        db.add(node)
-        db.flush()
-        node_id_map[i] = node.id
-        node_id_map[f"{node.type}_node"] = node.id
-        added_nodes.append({"id": node.id, "label": node.label, "type": node.type})
-
-    added_edges = []
-    for edge_data in scan_result.get("suggested_edges", []):
-        from_id = edge_data.get("from", "")
-        to_id = edge_data.get("to", "")
-        if from_id in node_id_map:
-            from_id = node_id_map[from_id]
-        if to_id in node_id_map:
-            to_id = node_id_map[to_id]
-        if not from_id or not to_id or from_id == to_id:
-            continue
-        edge = EdgeModel(
-            investigation_id=inv_id,
-            from_node=str(from_id),
-            to_node=str(to_id),
-            label=edge_data.get("label", "related to"),
-            trust_level=3,
-        )
-        db.add(edge)
-        db.flush()
-        added_edges.append({"id": edge.id, "label": edge.label})
-
-    db.commit()
-
+@router.get("/health")
+async def check_health():
+    """Check OSINT scanner health."""
     return {
-        "scan_result": scan_result,
-        "added_nodes": added_nodes,
-        "added_edges": added_edges,
-        "investigation_id": inv_id,
+        "status": "healthy",
+        "scanners": ["email", "domain", "ip", "username"],
+        "features": [
+            "DNS analysis",
+            "WHOIS lookup",
+            "SSL certificate analysis",
+            "Social media search",
+            "Geolocation",
+            "ASN lookup",
+            "Reputation checking",
+            "Subdomain enumeration"
+        ]
     }
+
+
+async def add_scan_to_graph(investigation_id: str, scan_result: dict):
+    """Add scan results to investigation graph."""
+    try:
+        db = next(get_db())
+        
+        # Add main node
+        main_node = NodeModel(
+            investigation_id=investigation_id,
+            label=scan_result.get("target", ""),
+            type=scan_result.get("scan_type", "unknown"),
+            data=scan_result,
+            trust_level=3  # Medium trust for automated scans
+        )
+        db.add(main_node)
+        db.commit()
+        
+        # Add related nodes (social accounts, domains, etc.)
+        if scan_result.get("social_accounts"):
+            for account in scan_result["social_accounts"]:
+                node = NodeModel(
+                    investigation_id=investigation_id,
+                    label=f"{account.get('platform', '')}: {account.get('username', '')}",
+                    type="social_account",
+                    data=account,
+                    trust_level=2
+                )
+                db.add(node)
+                db.commit()
+                
+                # Add edge
+                edge = EdgeModel(
+                    investigation_id=investigation_id,
+                    source_id=main_node.id,
+                    target_id=node.id,
+                    label="found_on"
+                )
+                db.add(edge)
+                db.commit()
+        
+        db.close()
+        
+    except Exception as e:
+        print(f"Failed to add scan to graph: {str(e)}")
+
+
+# Import re at the top
+import re

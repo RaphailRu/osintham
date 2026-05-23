@@ -4,7 +4,7 @@ import cytoscape from 'cytoscape'
 import dagre from 'cytoscape-dagre'
 import dagreLib from 'dagre'
 import {
-  Plus, ZoomIn, ZoomOut, Maximize2, X, Save,
+  Plus, ZoomIn, ZoomOut, Maximize2, X, Save, Search,
   User, Mail, Phone, Globe, Building, Hash, Calendar, FileText, Link as LinkIcon
 } from 'lucide-react'
 import useStore from '../store'
@@ -47,11 +47,12 @@ export default function Investigation() {
   const containerRef = useRef(null)
   const {
     graphData, setGraphData, selectedNode, setSelectedNode,
-    selectedEdge, setSelectedEdge, addLog, templates, setTemplates
+    selectedEdge, setSelectedEdge, addLog, templates, setTemplates, activeTab, setActiveTab
   } = useStore()
 
   const [showNodeEditor, setShowNodeEditor] = useState(false)
   const [showEdgeEditor, setShowEdgeEditor] = useState(false)
+  const [showOsintTab, setShowOsintTab] = useState(false)
   const [editingNode, setEditingNode] = useState(null)
   const [connectingFrom, setConnectingFrom] = useState(null)
 
@@ -294,6 +295,18 @@ export default function Investigation() {
               Delete Selected
             </button>
           )}
+          <div className="w-px h-6 bg-[#334155] mx-1" />
+          <button
+            onClick={() => setShowOsintTab(!showOsintTab)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm transition-colors ${
+              showOsintTab
+                ? 'bg-[#10b981] text-white'
+                : 'bg-[#334155] hover:bg-[#475569] text-white'
+            }`}
+          >
+            <Search className="w-4 h-4" />
+            OSINT Scanner
+          </button>
         </div>
 
         <div className="flex items-center gap-1">
@@ -423,6 +436,17 @@ export default function Investigation() {
           </div>
         </div>
       </div>
+
+      {/* OSINT Scanner Panel */}
+      {showOsintTab && (
+        <div className="border-t border-[#334155] bg-[#1e293b] p-4">
+          <OsintScanner
+            investigationId={id}
+            onNodesAdded={loadGraph}
+            onClose={() => setShowOsintTab(false)}
+          />
+        </div>
+      )}
 
       {/* Modals */}
       {showNodeEditor && (

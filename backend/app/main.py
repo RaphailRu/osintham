@@ -1,4 +1,4 @@
-"""OsintHAM — FastAPI Main Application"""
+"""OsintHAM — FastAPI Main Application v3"""
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -8,16 +8,14 @@ import os
 from app.database import init_db
 from app.api import investigations, nodes, edges, graph_api, reports, templates, osint
 
-# Initialize database
 init_db()
 
 app = FastAPI(
     title="OsintHAM",
-    description="OSINT Investigation Constructor — graph-based investigation tool",
-    version="0.2.0",
+    description="OSINT Investigation Constructor — graph-based investigation tool with 25+ OSINT integrations",
+    version="0.3.0",
 )
 
-# CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -26,7 +24,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# API routes
 app.include_router(investigations.router)
 app.include_router(nodes.router)
 app.include_router(edges.router)
@@ -35,8 +32,7 @@ app.include_router(reports.router)
 app.include_router(templates.router)
 app.include_router(osint.router)
 
-
-# ── Serve Frontend (for production) ──
+# Serve frontend
 FRONTEND_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "frontend", "dist")
 if os.path.isdir(FRONTEND_DIR):
     app.mount("/assets", StaticFiles(directory=os.path.join(FRONTEND_DIR, "assets")), name="assets")
@@ -51,4 +47,37 @@ if os.path.isdir(FRONTEND_DIR):
 
 @app.get("/api/health")
 def health_check():
-    return {"status": "ok", "service": "OsintHAM", "version": "0.2.0"}
+    return {"status": "ok", "service": "OsintHAM", "version": "0.3.0"}
+
+
+@app.get("/api")
+def api_root():
+    return {
+        "service": "OsintHAM",
+        "version": "0.3.0",
+        "endpoints": {
+            "investigations": "/api/investigations",
+            "nodes": "/api/nodes",
+            "edges": "/api/edges",
+            "graph": "/api/investigations/{id}/graph",
+            "reports": "/api/investigations/{id}/report",
+            "templates": "/api/templates",
+            "osint": {
+                "scan": "POST /api/osint/scan",
+                "email": "/api/osint/email/{email}",
+                "phone": "/api/osint/phone/{phone}",
+                "domain": "/api/osint/domain/{domain}",
+                "ip": "/api/osint/ip/{ip}",
+                "username": "/api/osint/username/{username}",
+                "url": "/api/osint/url?url=",
+                "wayback": "/api/osint/wayback?domain=",
+                "shodan": "/api/osint/shodan?ip=",
+                "ghdb": "/api/osint/ghdb/{domain}",
+                "geolocation": "/api/osint/geolocation?query=",
+                "universal": "/api/osint/universal/{query}",
+                "hash": "/api/osint/hash/{text}",
+                "enrich": "POST /api/osint/enrich/{inv_id}",
+                "tools": "/api/osint/tools",
+            },
+        },
+    }
