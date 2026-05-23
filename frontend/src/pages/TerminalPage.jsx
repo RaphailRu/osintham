@@ -441,7 +441,7 @@ export default function TerminalPage() {
     const parts = trimmed.split(/\s+/)
     const cmdName = parts[0].toLowerCase()
 
-    setHistory(prev => [...prev, { type: 'input', text: trimmed }])
+    setHistory(prev => [...prev.slice(-1000), { type: 'input', text: trimmed }])
     setCmdHistory(prev => [trimmed, ...prev])
     setCmdHistoryIdx(-1)
 
@@ -456,10 +456,10 @@ export default function TerminalPage() {
       if (result === '__CLEAR__') {
         setHistory([])
       } else {
-        setHistory(prev => [...prev, { type: 'output', text: result }])
+        setHistory(prev => [...prev.slice(-1000), { type: 'output', text: result }])
       }
     } else {
-      setHistory(prev => [...prev, {
+      setHistory(prev => [...prev.slice(-1000), {
         type: 'error',
         text: `Command not found: ${cmdName}. Type 'help' for available commands.`
       }])

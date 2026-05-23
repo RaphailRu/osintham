@@ -2,14 +2,14 @@ import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus, FolderOpen, Trash2, Clock } from 'lucide-react'
 import useStore from '../store'
-import { getInvestigations, createInvestigation, deleteInvestigation } from '../api'
+import { getInvestigations, deleteInvestigation } from '../api'
+import CreateInvestigationModal from '../components/CreateInvestigationModal'
 
 export default function Dashboard() {
   const navigate = useNavigate()
   const { investigations, setInvestigations, addLog } = useStore()
   const [showCreate, setShowCreate] = useState(false)
-  const [newTitle, setNewTitle] = useState('')
-  const [newDesc, setNewDesc] = useState('')
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     loadInvestigations()
@@ -21,22 +21,14 @@ export default function Dashboard() {
       setInvestigations(res.data)
     } catch (err) {
       addLog(`Error loading investigations: ${err.message}`)
+    } finally {
+      setLoading(false)
     }
   }
 
-  const handleCreate = async () => {
-    if (!newTitle.trim()) return
-    try {
-      const res = await createInvestigation({ title: newTitle, description: newDesc })
-      addLog(`Created investigation: ${newTitle}`)
-      setNewTitle('')
-      setNewDesc('')
-      setShowCreate(false)
-      await loadInvestigations()
-      navigate(`/investigation/${res.data.id}`)
-    } catch (err) {
-      addLog(`Error creating: ${err.message}`)
-    }
+  const handleCreated = (inv) => {
+    setShowCreate(false)
+    navigate(`/investigation/${inv.id}`)
   }
 
   const handleDelete = async (id, title) => {
@@ -50,9 +42,16 @@ export default function Dashboard() {
     }
   }
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-[#64748b]">Loading investigations...</div>
+      </div>
+    )
+  }
+
   return (
     <div className="p-8 max-w-6xl mx-auto">
-      {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-3xl font-bold text-white mb-2">🕷️ OsintHAM</h1>
@@ -67,46 +66,13 @@ export default function Dashboard() {
         </button>
       </div>
 
-      {/* Create Modal */}
       {showCreate && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-          <div className="bg-[#1e293b] rounded-xl p-6 w-full max-w-md border border-[#334155] animate-fade-in">
-            <h2 className="text-xl font-bold text-white mb-4">New Investigation</h2>
-            <input
-              type="text"
-              placeholder="Investigation title..."
-              value={newTitle}
-              onChange={e => setNewTitle(e.target.value)}
-              className="w-full px-4 py-3 bg-[#0f172a] border border-[#334155] rounded-lg text-white placeholder-[#64748b] focus:outline-none focus:border-[#6366f1] mb-3"
-              autoFocus
-              onKeyDown={e => e.key === 'Enter' && handleCreate()}
-            />
-            <textarea
-              placeholder="Description (optional)..."
-              value={newDesc}
-              onChange={e => setNewDesc(e.target.value)}
-              className="w-full px-4 py-3 bg-[#0f172a] border border-[#334155] rounded-lg text-white placeholder-[#64748b] focus:outline-none focus:border-[#6366f1] mb-4 h-24 resize-none"
-            />
-            <div className="flex gap-3 justify-end">
-              <button
-                onClick={() => setShowCreate(false)}
-                className="px-4 py-2 text-[#94a3b8] hover:text-white transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleCreate}
-                disabled={!newTitle.trim()}
-                className="px-6 py-2 bg-[#6366f1] hover:bg-[#818cf8] disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-colors font-medium"
-              >
-                Create
-              </button>
-            </div>
-          </div>
-        </div>
+        <CreateInvestigationModal
+          onClose={() => setShowCreate(false)}
+          onCreated={handleCreated}
+        />
       )}
 
-      {/* Investigation Grid */}
       {investigations.length === 0 ? (
         <div className="text-center py-20">
           <FolderOpen className="w-16 h-16 text-[#334155] mx-auto mb-4" />
@@ -135,6 +101,7 @@ export default function Dashboard() {
                 <button
                   onClick={e => { e.stopPropagation(); handleDelete(inv.id, inv.title) }}
                   className="p-1 rounded hover:bg-red-500/20 text-[#64748b] hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
+                  aria-label={`Delete ${inv.title}`}
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>

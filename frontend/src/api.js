@@ -5,7 +5,59 @@ const API_BASE = import.meta.env.VITE_API_URL || '/api'
 const api = axios.create({
   baseURL: API_BASE,
   headers: { 'Content-Type': 'application/json' },
+  timeout: 30000,
 })
+
+// ── Request Interceptor ──
+api.interceptors.request.use(
+  (config) => {
+    // Add auth token if available
+    const token = localStorage.getItem('osintham_token')
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`
+    }
+    return config
+  },
+  (error) => {
+    console.error('Request error:', error)
+    return Promise.reject(error)
+  }
+)
+
+// ── Response Interceptor ──
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response) {
+      const { status, data } = error.response
+      switch (status) {
+        case 401:
+          console.error('Unauthorized — redirecting to login')
+          localStorage.removeItem('osintham_token')
+          break
+        case 403:
+          console.error('Forbidden — insufficient permissions')
+          break
+        case 404:
+          console.error('Resource not found:', error.config.url)
+          break
+        case 429:
+          console.error('Rate limited — too many requests')
+          break
+        case 500:
+          console.error('Server error:', data?.message || 'Internal server error')
+          break
+        default:
+          console.error(`HTTP ${status}:`, data?.message || error.message)
+      }
+    } else if (error.request) {
+      console.error('Network error — no response received:', error.message)
+    } else {
+      console.error('Request setup error:', error.message)
+    }
+    return Promise.reject(error)
+  }
+)
 
 // ── Investigations ──
 export const getInvestigations = () => api.get('/investigations')

@@ -62,7 +62,7 @@ const useStore = create((set, get) => ({
   
   // Error Handling
   addError: (error) => set((state) => ({ 
-    errors: [...state.errors, { id: Date.now(), message: error, timestamp: new Date() }]
+    errors: [...state.errors, { id: Date.now(), message: error, timestamp: new Date() }].slice(-50)
   })),
   clearErrors: () => set({ errors: [] }),
   removeError: (id) => set((state) => ({ 
@@ -126,7 +126,7 @@ const useStore = create((set, get) => ({
 
   // Log Actions
   addLog: (message) => set((state) => ({
-    logEntries: [...state.logEntries, { time: new Date(), message }]
+    logEntries: [...state.logEntries, { time: new Date(), message }].slice(-500)
   })),
 
   clearLog: () => set({ logEntries: [] }),
