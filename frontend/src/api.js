@@ -40,4 +40,19 @@ export const getReportMarkdown = (invId) => api.get(`/investigations/${invId}/re
 export const getTemplates = () => api.get('/templates')
 export const getTemplateByType = (type) => api.get(`/templates/${type}`)
 
+// ── OSINT ──
+export const osintScan = (target, targetType = 'auto') =>
+  api.post('/osint/scan', { target, target_type: targetType })
+export const osintScanEmail = (email) => api.get(`/osint/email/${encodeURIComponent(email)}`)
+export const osintScanPhone = (phone) => api.get(`/osint/phone/${encodeURIComponent(phone)}`)
+export const osintScanDomain = (domain) => api.get(`/osint/domain/${encodeURIComponent(domain)}`)
+export const osintScanIp = (ip) => api.get(`/osint/ip/${encodeURIComponent(ip)}`)
+export const osintScanUsername = (username) => api.get(`/osint/username/${encodeURIComponent(username)}`)
+export const osintScanUrl = (url) => api.get(`/osint/url?url=${encodeURIComponent(url)}`)
+export const osintHashes = (text) => api.get(`/osint/hash/${encodeURIComponent(text)}`)
+export const osintEnrich = (invId, target, targetType = 'auto') =>
+  api.post(`/osint/enrich/${invId}`, { target, target_type: targetType, auto_add_nodes: true })
+export const osintBulkScan = (targets, targetType = 'auto') =>
+  api.post('/osint/bulk-scan', { targets, target_type: targetType })
+
 export default api

@@ -13,6 +13,7 @@ import NodeEditor from '../components/NodeEditor'
 import EdgeEditor from '../components/EdgeEditor'
 import LogPanel from '../components/LogPanel'
 import TrustBadge from '../components/TrustBadge'
+import OsintScanner from '../components/OsintScanner'
 
 cytoscape.use(dagre)
 

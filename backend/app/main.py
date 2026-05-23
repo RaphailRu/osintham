@@ -6,7 +6,7 @@ from fastapi.responses import FileResponse
 import os
 
 from app.database import init_db
-from app.api import investigations, nodes, edges, graph_api, reports, templates
+from app.api import investigations, nodes, edges, graph_api, reports, templates, osint
 
 # Initialize database
 init_db()
@@ -14,7 +14,7 @@ init_db()
 app = FastAPI(
     title="OsintHAM",
     description="OSINT Investigation Constructor — graph-based investigation tool",
-    version="0.1.0",
+    version="0.2.0",
 )
 
 # CORS
@@ -33,6 +33,7 @@ app.include_router(edges.router)
 app.include_router(graph_api.router)
 app.include_router(reports.router)
 app.include_router(templates.router)
+app.include_router(osint.router)
 
 
 # ── Serve Frontend (for production) ──
@@ -50,4 +51,4 @@ if os.path.isdir(FRONTEND_DIR):
 
 @app.get("/api/health")
 def health_check():
-    return {"status": "ok", "service": "OsintHAM", "version": "0.1.0"}
+    return {"status": "ok", "service": "OsintHAM", "version": "0.2.0"}
