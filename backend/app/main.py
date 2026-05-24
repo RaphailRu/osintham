@@ -6,7 +6,7 @@ from fastapi.responses import FileResponse
 import os
 
 from app.database import init_db
-from app.api import investigations, nodes, edges, graph_api, reports, templates, osint, agents, framework
+from app.api import investigations, nodes, edges, graph_api, reports, templates, osint, agents, framework, spiderfoot
 
 init_db()
 
@@ -33,6 +33,7 @@ app.include_router(templates.router)
 app.include_router(osint.router)
 app.include_router(agents.router)
 app.include_router(framework.router)
+app.include_router(spiderfoot.router)
 
 # Serve frontend
 FRONTEND_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "frontend", "dist")
@@ -96,6 +97,13 @@ def api_root():
                 "search": "/api/framework/search?q={query}",
                 "tools": "/api/framework/tools",
                 "stats": "/api/framework/stats",
+            },
+            "spiderfoot": {
+                "info": "/api/spiderfoot",
+                "categories": "/api/spiderfoot/categories",
+                "modules": "/api/spiderfoot/modules",
+                "search": "/api/spiderfoot/search?q={query}",
+                "stats": "/api/spiderfoot/stats",
             },
         },
     }

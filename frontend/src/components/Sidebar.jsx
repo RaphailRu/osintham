@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import {
   Home, Network, FileText, Terminal, Settings, Search, Plus,
   ChevronLeft, ChevronRight, Bug, Zap, Star, Trash2, Clock,
-  ChevronDown, ChevronRight as ChevronRightIcon, Globe
+  ChevronDown, ChevronRight as ChevronRightIcon, Globe, Shield
 } from 'lucide-react'
 import useStore from '../store'
 import { getInvestigations, deleteInvestigation } from '../api'
@@ -11,6 +11,7 @@ import { getInvestigations, deleteInvestigation } from '../api'
 const MAIN_NAV = [
   { id: 'dashboard', icon: Home, label: 'Главная', path: '/' },
   { id: 'framework', icon: Globe, label: 'OSINT Framework', path: '/framework' },
+  { id: 'spiderfoot', icon: Shield, label: 'SpiderFoot', path: '/spiderfoot' },
 ]
 
 const INVESTIGATION_NAV = [

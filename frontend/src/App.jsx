@@ -6,6 +6,7 @@ import Investigation from './pages/Investigation'
 import Reports from './pages/Reports'
 import TerminalPage from './pages/TerminalPage'
 import OsintFramework from './components/OsintFramework'
+import SpiderFoot from './components/SpiderFoot'
 import ToastContainer from './components/ToastContainer'
 import ErrorBoundary from './components/ErrorBoundary'
 import CreateInvestigationModal from './components/CreateInvestigationModal'
@@ -64,6 +65,7 @@ function AppContent() {
             <Route path="/investigation/:id/reports" element={<Reports />} />
             <Route path="/investigation/:id/terminal" element={<TerminalPage />} />
             <Route path="/framework" element={<OsintFramework />} />
+            <Route path="/spiderfoot" element={<SpiderFoot />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </div>

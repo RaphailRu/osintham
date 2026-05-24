@@ -115,4 +115,11 @@ export const searchFrameworkTools = (query) => api.get(`/framework/search?q=${en
 export const getFrameworkTools = (params) => api.get('/framework/tools', { params })
 export const getFrameworkStats = () => api.get('/framework/stats')
 
+// ── SpiderFoot ──
+export const getSpiderFootInfo = () => api.get('/spiderfoot')
+export const getSpiderFootCategories = () => api.get('/spiderfoot/categories')
+export const getSpiderFootCategory = (name) => api.get(`/spiderfoot/category/${encodeURIComponent(name)}`)
+export const searchSpiderFootModules = (query) => api.get(`/spiderfoot/search?q=${encodeURIComponent(query)}`)
+export const getSpiderFootStats = () => api.get('/spiderfoot/stats')
+
 export default api
