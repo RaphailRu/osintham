@@ -6,7 +6,7 @@ from fastapi.responses import FileResponse
 import os
 
 from app.database import init_db
-from app.api import investigations, nodes, edges, graph_api, reports, templates, osint, agents
+from app.api import investigations, nodes, edges, graph_api, reports, templates, osint, agents, framework
 
 init_db()
 
@@ -32,6 +32,7 @@ app.include_router(reports.router)
 app.include_router(templates.router)
 app.include_router(osint.router)
 app.include_router(agents.router)
+app.include_router(framework.router)
 
 # Serve frontend
 FRONTEND_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "frontend", "dist")
@@ -87,6 +88,14 @@ def api_root():
                 "cancel": "DELETE /api/agents/cancel/{id}",
                 "scanners": "GET /api/agents/scanners",
                 "health": "GET /api/agents/health",
+            },
+            "framework": {
+                "info": "/api/framework",
+                "categories": "/api/framework/categories",
+                "category": "/api/framework/category/{name}",
+                "search": "/api/framework/search?q={query}",
+                "tools": "/api/framework/tools",
+                "stats": "/api/framework/ststats",
             },
         },
     }

@@ -107,4 +107,12 @@ export const osintEnrich = (invId, target, targetType = 'auto') =>
 export const osintBulkScan = (targets, targetType = 'auto') =>
   api.post('/osint/bulk-scan', { targets, target_type: targetType })
 
+// ── OSINT Framework ──
+export const getFrameworkInfo = () => api.get('/framework')
+export const getFrameworkCategories = () => api.get('/framework/categories')
+export const getFrameworkCategory = (name) => api.get(`/framework/category/${encodeURIComponent(name)}`)
+export const searchFrameworkTools = (query) => api.get(`/framework/search?q=${encodeURIComponent(query)}`)
+export const getFrameworkTools = (params) => api.get('/framework/tools', { params })
+export const getFrameworkStats = () => api.get('/framework/stats')
+
 export default api
