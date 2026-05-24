@@ -1,10 +1,10 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
 import cytoscape from 'cytoscape'
 import dagre from 'cytoscape-dagre'
 import {
-  Plus, ZoomIn, ZoomOut, Maximize2, X, Save, Search,
-  Link as LinkIcon
+  Plus, ZoomIn, ZoomOut, Maximize2, X, Search,
+  Link as LinkIcon, Trash2
 } from 'lucide-react'
 import useStore from '../store'
 import { getGraph, createNode, createEdge, deleteNode, deleteEdge, getTemplates } from '../api'
@@ -17,24 +17,19 @@ import OsintScanner from '../components/OsintScanner'
 cytoscape.use(dagre)
 
 const NODE_COLORS = {
-  person: '#8b5cf6',
-  email: '#ef4444',
-  phone: '#f97316',
-  social_account: '#10b981',
-  organization: '#06b6d4',
-  domain: '#f59e0b',
-  ip: '#ec4899',
-  event: '#6366f1',
-  document: '#64748b',
+  person: '#8b5cf6', email: '#ef4444', phone: '#f97316',
+  social_account: '#10b981', organization: '#06b6d4',
+  domain: '#f59e0b', ip: '#ec4899', event: '#6366f1', document: '#64748b',
 }
 
 export default function Investigation() {
   const { id } = useParams()
+  const navigate = useNavigate()
   const cyRef = useRef(null)
   const containerRef = useRef(null)
   const {
     graphData, setGraphData, selectedNode, setSelectedNode,
-    selectedEdge, setSelectedEdge, addLog, templates, setTemplates, activeTab, setActiveTab
+    selectedEdge, setSelectedEdge, addLog, templates, setTemplates
   } = useStore()
 
   const [showNodeEditor, setShowNodeEditor] = useState(false)
@@ -42,12 +37,11 @@ export default function Investigation() {
   const [showOsintTab, setShowOsintTab] = useState(false)
   const [connectingFrom, setConnectingFrom] = useState(null)
 
-  // Load graph data
   const loadGraph = useCallback(async () => {
     try {
       const res = await getGraph(id)
       setGraphData(res.data)
-      addLog(`Graph loaded: ${res.data.nodes?.length || 0} nodes, ${res.data.edges?.length || 0} edges`)
+      addLog(`Graph loaded: ${res.data.nodes?.length || 0} nodes`)
     } catch (err) {
       addLog(`Error loading graph: ${err.message}`)
     }
@@ -68,9 +62,7 @@ export default function Investigation() {
     graphData.nodes.forEach(n => {
       elements.push({
         data: {
-          id: n.id,
-          label: n.label,
-          type: n.type,
+          id: n.id, label: n.label, type: n.type,
           trust_level: n.trust_level,
           color: NODE_COLORS[n.type] || '#6366f1',
           ...n,
@@ -80,12 +72,8 @@ export default function Investigation() {
     graphData.edges.forEach(e => {
       elements.push({
         data: {
-          id: e.id,
-          source: e.from,
-          target: e.to,
-          label: e.label,
-          trust_level: e.trust_level,
-          ...e,
+          id: e.id, source: e.from, target: e.to,
+          label: e.label, trust_level: e.trust_level, ...e,
         }
       })
     })
@@ -99,77 +87,45 @@ export default function Investigation() {
           style: {
             'background-color': 'data(color)',
             'label': 'data(label)',
-            'text-valign': 'center',
-            'text-halign': 'center',
-            'color': '#fff',
-            'font-size': '11px',
-            'text-outline-color': '#000',
-            'text-outline-width': '2px',
-            'width': 40,
-            'height': 40,
-            'border-width': 2,
-            'border-color': '#fff',
+            'text-valign': 'center', 'text-halign': 'center',
+            'color': '#fff', 'font-size': '11px',
+            'text-outline-color': '#000', 'text-outline-width': '2px',
+            'width': 40, 'height': 40, 'border-width': 2, 'border-color': '#fff'
           }
         },
         {
           selector: 'node:selected',
-          style: {
-            'border-width': 4,
-            'border-color': '#fbbf24',
-            'width': 50,
-            'height': 50,
-          }
+          style: { 'border-width': 4, 'border-color': '#fbbf24', 'width': 50, 'height': 50 }
         },
         {
           selector: 'edge',
           style: {
-            'width': 2,
-            'line-color': '#475569',
-            'target-arrow-color': '#475569',
-            'target-arrow-shape': 'triangle',
-            'curve-style': 'bezier',
-            'label': 'data(label)',
-            'font-size': '9px',
-            'color': '#94a3b8',
-            'text-background-color': '#1e293b',
-            'text-background-opacity': 1,
-            'text-background-padding': '2px',
+            'width': 2, 'line-color': '#475569',
+            'target-arrow-color': '#475569', 'target-arrow-shape': 'triangle',
+            'curve-style': 'bezier', 'label': 'data(label)',
+            'font-size': '9px', 'color': '#94a3b8',
+            'text-background-color': '#1e293b', 'text-background-opacity': 1, 'text-background-padding': '2px'
           }
         },
         {
           selector: 'edge:selected',
-          style: {
-            'width': 3,
-            'line-color': '#6366f1',
-            'target-arrow-color': '#6366f1',
-          }
+          style: { 'width': 3, 'line-color': '#6366f1', 'target-arrow-color': '#6366f1' }
         },
       ],
-      layout: {
-        name: 'dagre',
-        rankDir: 'TB',
-        nodeSep: 60,
-        rankSep: 80,
-        padding: 30,
-      },
-      minZoom: 0.3,
-      maxZoom: 3,
-      wheelSensitivity: 0.3,
+      layout: { name: 'cose', padding: 20, nodeRepulsion: 4000, idealEdgeLength: 100 },
+      minZoom: 0.3, maxZoom: 3, wheelSensitivity: 0.3,
     })
 
-    // Click handlers
     cy.on('tap', 'node', evt => {
       const node = evt.target
       setSelectedNode(node.data())
       setSelectedEdge(null)
     })
-
     cy.on('tap', 'edge', evt => {
       const edge = evt.target
       setSelectedEdge(edge.data())
       setSelectedNode(null)
     })
-
     cy.on('tap', evt => {
       if (evt.target === cy) {
         setSelectedNode(null)
@@ -177,61 +133,39 @@ export default function Investigation() {
       }
     })
 
-    // Right-click for context menu
-    cy.on('cxttap', 'node', evt => {
-      const node = evt.target
-      setConnectingFrom(node.data().id)
-    })
-
     cyRef.current = cy
-
-    return () => {
-      cy.destroy()
-    }
+    return () => { cy.destroy() }
   }, [graphData])
 
-  // Handle zoom
   const handleZoom = (delta) => {
-    if (!cyRef.current) return
-    const cy = cyRef.current
-    cy.zoom(cy.zoom() + delta)
+    if (cyRef.current) cyRef.current.zoom(cyRef.current.zoom() + delta)
   }
+  const handleFit = () => { if (cyRef.current) cyRef.current.fit() }
 
-  const handleFit = () => {
-    if (cyRef.current) cyRef.current.fit()
-  }
-
-  // Add node
   const handleAddNode = async (nodeData) => {
     try {
-      const res = await createNode(id, nodeData)
-      addLog(`Added node: ${nodeData.label} (${nodeData.type})`)
+      await createNode(id, nodeData)
+      addLog(`Added node: ${nodeData.label}`)
       setShowNodeEditor(false)
       await loadGraph()
-    } catch (err) {
-      addLog(`Error adding node: ${err.message}`)
-    }
+    } catch (err) { addLog(`Error: ${err.message}`) }
   }
 
-  // Add edge
   const handleAddEdge = async (edgeData) => {
     try {
-      const res = await createEdge(id, edgeData)
-      addLog(`Added edge: ${edgeData.from_node} → ${edgeData.to_node}`)
+      await createEdge(id, edgeData)
+      addLog(`Added edge`)
       setShowEdgeEditor(false)
       setConnectingFrom(null)
       await loadGraph()
-    } catch (err) {
-      addLog(`Error adding edge: ${err.message}`)
-    }
+    } catch (err) { addLog(`Error: ${err.message}`) }
   }
 
-  // Delete selected
   const handleDeleteSelected = async () => {
     if (selectedNode) {
-      if (!confirm(`Delete node "${selectedNode.label}"?`)) return
+      if (!confirm(`Delete "${selectedNode.label}"?`)) return
       await deleteNode(selectedNode.id)
-      addLog(`Deleted node: ${selectedNode.label}`)
+      addLog(`Deleted: ${selectedNode.label}`)
       setSelectedNode(null)
       await loadGraph()
     } else if (selectedEdge) {
@@ -242,59 +176,33 @@ export default function Investigation() {
     }
   }
 
-  // Quick connect mode
-  const handleQuickConnect = async (targetId) => {
-    if (!connectingFrom || connectingFrom === targetId) return
-    await handleAddEdge({
-      from_node: connectingFrom,
-      to_node: targetId,
-      label: 'related to',
-      trust_level: 3,
-    })
-  }
-
   return (
     <div className="h-full flex flex-col">
       {/* Toolbar */}
       <div className="flex items-center justify-between px-4 py-2 bg-[#1e293b] border-b border-[#334155]">
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => setShowNodeEditor(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-[#6366f1] hover:bg-[#818cf8] text-white rounded-lg text-sm transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            Add Node
+          <button onClick={() => setShowNodeEditor(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-[#6366f1] hover:bg-[#818cf8] text-white rounded-lg text-sm transition-colors">
+            <Plus className="w-4 h-4" /> Add Node
           </button>
-          <button
-            onClick={() => setShowEdgeEditor(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-[#334155] hover:bg-[#475569] text-white rounded-lg text-sm transition-colors"
-          >
-            <LinkIcon className="w-4 h-4" />
-            Add Edge
+          <button onClick={() => setShowEdgeEditor(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-[#334155] hover:bg-[#475569] text-white rounded-lg text-sm transition-colors">
+            <LinkIcon className="w-4 h-4" /> Add Edge
           </button>
           {(selectedNode || selectedEdge) && (
-            <button
-              onClick={handleDeleteSelected}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg text-sm transition-colors"
-            >
-              <X className="w-4 h-4" />
-              Delete Selected
+            <button onClick={handleDeleteSelected}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg text-sm transition-colors">
+              <Trash2 className="w-4 h-4" /> Delete
             </button>
           )}
           <div className="w-px h-6 bg-[#334155] mx-1" />
-          <button
-            onClick={() => setShowOsintTab(!showOsintTab)}
+          <button onClick={() => setShowOsintTab(!showOsintTab)}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm transition-colors ${
-              showOsintTab
-                ? 'bg-[#10b981] text-white'
-                : 'bg-[#334155] hover:bg-[#475569] text-white'
-            }`}
-          >
-            <Search className="w-4 h-4" />
-            OSINT Scanner
+              showOsintTab ? 'bg-[#10b981] text-white' : 'bg-[#334155] hover:bg-[#475569] text-white'
+            }`}>
+            <Search className="w-4 h-4" /> OSINT Scanner
           </button>
         </div>
-
         <div className="flex items-center gap-1">
           <button onClick={() => handleZoom(0.2)} className="p-1.5 rounded hover:bg-[#334155] text-[#94a3b8]">
             <ZoomIn className="w-4 h-4" />
@@ -317,31 +225,21 @@ export default function Investigation() {
               <div className="text-center">
                 <div className="text-6xl mb-4">🕸️</div>
                 <h2 className="text-xl text-[#64748b] mb-2">Empty Graph</h2>
-                <p className="text-[#475569] mb-4">Add your first node to start building the investigation</p>
-                <button
-                  onClick={() => setShowNodeEditor(true)}
-                  className="px-6 py-3 bg-[#6366f1] hover:bg-[#818cf8] text-white rounded-lg transition-colors font-medium"
-                >
-                  <Plus className="w-5 h-5 inline mr-2" />
-                  Add First Node
+                <p className="text-[#475569] mb-4">Add your first node to start</p>
+                <button onClick={() => setShowNodeEditor(true)}
+                  className="px-6 py-3 bg-[#6366f1] hover:bg-[#818cf8] text-white rounded-lg transition-colors font-medium">
+                  <Plus className="w-5 h-5 inline mr-2" /> Add First Node
                 </button>
               </div>
             </div>
           ) : (
-            <div ref={containerRef} className="graph-container" />
-          )}
-
-          {/* Connecting mode indicator */}
-          {connectingFrom && (
-            <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-[#fbbf24] text-black px-4 py-2 rounded-lg text-sm font-medium animate-pulse">
-              Click on target node to connect, or press Escape to cancel
-            </div>
+            <div ref={containerRef} className="w-full h-full bg-[#1a1a2e]" />
           )}
         </div>
 
         {/* Right panel */}
         <div className="w-80 bg-[#1e293b] border-l border-[#334155] flex flex-col overflow-hidden">
-          {/* Selected node/edge info */}
+          {/* Selected info */}
           {selectedNode && (
             <div className="p-4 border-b border-[#334155] animate-fade-in">
               <div className="flex items-center gap-2 mb-3">
@@ -357,23 +255,6 @@ export default function Investigation() {
                   <span className="text-[#64748b]">Trust:</span>
                   <TrustBadge level={selectedNode.trust_level} />
                 </div>
-                {selectedNode.source && (
-                  <div className="flex justify-between">
-                    <span className="text-[#64748b]">Source:</span>
-                    <span className="text-white truncate max-w-[180px]">{selectedNode.source}</span>
-                  </div>
-                )}
-                {selectedNode.data && Object.keys(selectedNode.data).length > 0 && (
-                  <div className="mt-3 pt-3 border-t border-[#334155]">
-                    <div className="text-[#64748b] text-xs mb-2">Data:</div>
-                    {Object.entries(selectedNode.data).map(([k, v]) => (
-                      <div key={k} className="flex justify-between text-xs py-1">
-                        <span className="text-[#64748b]">{k}:</span>
-                        <span className="text-white truncate max-w-[150px]">{String(v)}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
               </div>
             </div>
           )}
@@ -405,14 +286,6 @@ export default function Investigation() {
                 <div className="text-lg font-bold text-[#10b981]">{graphData.stats?.edge_count || 0}</div>
                 <div className="text-[#64748b] text-xs">Edges</div>
               </div>
-              <div className="bg-[#0f172a] rounded p-2 text-center">
-                <div className="text-lg font-bold text-[#f59e0b]">{graphData.stats?.density || 0}</div>
-                <div className="text-[#64748b] text-xs">Density</div>
-              </div>
-              <div className="bg-[#0f172a] rounded p-2 text-center">
-                <div className="text-lg font-bold text-[#ec4899]">{graphData.stats?.components || 0}</div>
-                <div className="text-[#64748b] text-xs">Components</div>
-              </div>
             </div>
           </div>
 
@@ -425,29 +298,17 @@ export default function Investigation() {
 
       {/* OSINT Scanner Panel */}
       {showOsintTab && (
-        <div className="border-t border-[#334155] bg-[#1e293b] p-4">
-          <OsintScanner
-            investigationId={id}
-            onNodesAdded={loadGraph}
-            onClose={() => setShowOsintTab(false)}
-          />
+        <div className="border-t border-[#334155] bg-[#1e293b] p-4 max-h-[40vh] overflow-y-auto">
+          <OsintScanner investigationId={id} onNodesAdded={loadGraph} onClose={() => setShowOsintTab(false)} />
         </div>
       )}
 
       {/* Modals */}
       {showNodeEditor && (
-        <NodeEditor
-          templates={templates}
-          onSave={handleAddNode}
-          onClose={() => setShowNodeEditor(false)}
-        />
+        <NodeEditor templates={templates} onSave={handleAddNode} onClose={() => setShowNodeEditor(false)} />
       )}
       {showEdgeEditor && (
-        <EdgeEditor
-          nodes={graphData.nodes || []}
-          onSave={handleAddEdge}
-          onClose={() => setShowEdgeEditor(false)}
-        />
+        <EdgeEditor nodes={graphData.nodes || []} onSave={handleAddEdge} onClose={() => setShowEdgeEditor(false)} />
       )}
     </div>
   )
