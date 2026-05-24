@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { HashRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import Sidebar from './components/Sidebar'
 import Dashboard from './pages/Dashboard'
 import Investigation from './pages/Investigation'
@@ -85,9 +85,9 @@ function AppContent() {
 export default function App() {
   return (
     <ErrorBoundary>
-      <BrowserRouter>
+      <HashRouter>
         <AppContent />
-      </BrowserRouter>
+      </HashRouter>
     </ErrorBoundary>
   )
 }
