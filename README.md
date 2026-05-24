@@ -148,14 +148,31 @@ osintham/
 - **Axios** — HTTP-клиент
 - **Lucide React** — иконки
 
-### OSINT Интеграции (25+)
-- **Username Search:** Sherlock, Maigret, Snoop, Holehe
-- **Email/Breaches:** HIBP, LeakCheck, BreachHound
-- **DNS/Network:** DNSDumpster, Shodan, Censys
-- **Web:** Wayback Machine, GHDB
-- **Frameworks:** SpiderFoot, Recon-ng, theHarvester
-- **Regional:** VK, OK, TeleSINT
-- **Face:** PimEyes
+### OSINT Интеграции (25+ собственных + 1417 из OSINT-Framework)
+- **Встроенные:** Sherlock, Maigret, Snoop, Holehe, Shodan, Censys, HIBP, theHarvester, SpiderFoot, Recon-ng, ExifTool, Wayback Machine, GHDB, TeleSINT, VK, OK, PimEyes, Osintplus, Osixr, js-recon
+- **OSINT-Framework:** 1417 инструментов из 33 категорий (Username, Email, Domain, IP, Social Networks, Dark Web, Geolocation...)
+- **Поиск по всем инструментам** через API `/api/framework/search`
+- **Категории:** AI Tools, Archives, Blockchain, Business Records, Classifieds, Cloud, Compliance, Threat Intel, Dark Web, Dating, Domain, Docs, Geolocation, IM, Malware, Mobile OSINT, People Search, Public Records, Search Engines, Social Networks, Telephone, Transportation, Training и др.
+
+## 🔗 OSINT Framework
+
+Интегрирован репозиторий [OSINT-Framework](https://github.com/lockfale/OSINT-Framework) — крупнейшая база данных OSINT-инструментов:
+
+- **1417 узлов** из **33 категорий**
+- Каждый инструмент содержит: название, URL, описание, статус (live/degraded/down), ценообразование (free/freemium/paid)
+- REST API для поиска и фильтрации
+- Веб-интерфейс с категориям и поиском
+
+### API Endpoints для OSINT Framework
+
+| Метод | Endpoint | Описание |
+|-------|----------|----------|
+| GET | `/api/framework` | Информация и список endpoints |
+| GET | `/api/framework/categories` | Список всех 33 категорий |
+| GET | `/api/framework/category/{name}` | Инструменты по категории |
+| GET | `/api/framework/search?q={query}` | Поиск инструментов |
+| GET | `/api/framework/tools` | Список с пагинацией |
+| GET | `/api/framework/stats` | Статистика |
 
 ## 🔒 Безопасность Этика
 

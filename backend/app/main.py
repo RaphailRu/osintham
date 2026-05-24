@@ -95,7 +95,7 @@ def api_root():
                 "category": "/api/framework/category/{name}",
                 "search": "/api/framework/search?q={query}",
                 "tools": "/api/framework/tools",
-                "stats": "/api/framework/ststats",
+                "stats": "/api/framework/stats",
             },
         },
     }
