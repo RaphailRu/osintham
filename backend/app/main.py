@@ -6,14 +6,14 @@ from fastapi.responses import FileResponse
 import os
 
 from app.database import init_db
-from app.api import investigations, nodes, edges, graph_api, reports, templates, osint
+from app.api import investigations, nodes, edges, graph_api, reports, templates, osint, agents
 
 init_db()
 
 app = FastAPI(
     title="OsintHAM",
     description="OSINT Investigation Constructor — graph-based investigation tool with 25+ OSINT integrations",
-    version="0.3.0",
+    version="0.4.0",
 )
 
 app.add_middleware(
@@ -31,6 +31,7 @@ app.include_router(graph_api.router)
 app.include_router(reports.router)
 app.include_router(templates.router)
 app.include_router(osint.router)
+app.include_router(agents.router)
 
 # Serve frontend
 FRONTEND_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "frontend", "dist")
@@ -78,6 +79,14 @@ def api_root():
                 "hash": "/api/osint/hash/{text}",
                 "enrich": "POST /api/osint/enrich/{inv_id}",
                 "tools": "/api/osint/tools",
+            },
+            "agents": {
+                "investigate": "POST /api/agents/investigate",
+                "status": "GET /api/agents/status/{id}",
+                "result": "GET /api/agents/result/{id}",
+                "cancel": "DELETE /api/agents/cancel/{id}",
+                "scanners": "GET /api/agents/scanners",
+                "health": "GET /api/agents/health",
             },
         },
     }

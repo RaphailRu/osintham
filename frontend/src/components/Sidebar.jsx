@@ -9,13 +9,13 @@ import useStore from '../store'
 import { getInvestigations, deleteInvestigation } from '../api'
 
 const MAIN_NAV = [
-  { id: 'dashboard', icon: Home, label: 'Dashboard', path: '/' },
+  { id: 'dashboard', icon: Home, label: 'Главная', path: '/' },
 ]
 
 const INVESTIGATION_NAV = [
-  { id: 'graph', icon: Network, label: 'Graph', path: '' },
-  { id: 'reports', icon: FileText, label: 'Reports', path: '/reports' },
-  { id: 'terminal', icon: Terminal, label: 'Terminal', path: '/terminal' },
+  { id: 'graph', icon: Network, label: 'Граф', path: '' },
+  { id: 'reports', icon: FileText, label: 'Отчёты', path: '/reports' },
+  { id: 'terminal', icon: Terminal, label: 'Терминал', path: '/terminal' },
 ]
 
 export default function Sidebar({ onNewInvestigation }) {
@@ -217,21 +217,21 @@ export default function Sidebar({ onNewInvestigation }) {
                             <button
                               onClick={(e) => toggleFavorite(inv.id, e)}
                               className="p-1 rounded hover:bg-white/10"
-                              title="Favorite"
+                              title="Избранное"
                             >
                               <Star className={`w-3 h-3 ${favorites.some(f => f.id === inv.id) ? 'fill-yellow-400 text-yellow-400' : 'text-[#64748b]'}`} />
                             </button>
                             <button
                               onClick={(e) => handleDelete(inv.id, inv.title, e)}
                               className="p-1 rounded hover:bg-red-500/20"
-                              title="Delete"
+                              title="Удалить"
                             >
                               <Trash2 className="w-3 h-3 text-[#64748b] hover:text-red-400" />
                             </button>
                           </div>
                         </div>
                         <div className="flex items-center gap-2 mt-1 text-xs text-[#64748b]">
-                          <span>{inv.node_count || 0} nodes</span>
+                          <span>{inv.node_count || 0} узлов</span>
                           <span>•</span>
                           <Clock className="w-3 h-3" />
                           <span>{new Date(inv.updated_at || Date.now()).toLocaleDateString()}</span>
@@ -253,10 +253,10 @@ export default function Sidebar({ onNewInvestigation }) {
           className="w-full flex items-center justify-center gap-2 px-3 py-2.5 bg-[#6366f1] hover:bg-[#818cf8] text-white rounded-lg text-sm font-medium transition-colors"
         >
           <Plus className="w-4 h-4" />
-          New Investigation
+          Новое расследование
         </button>
         <div className="flex items-center justify-between mt-2 text-xs text-[#64748b]">
-          <span>OsintHAM v0.4.0</span>
+          <span>OsintHAM v0.5.1</span>
           <span>{favorites.length} ⭐</span>
         </div>
       </div>

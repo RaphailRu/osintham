@@ -1,0 +1,66 @@
+# OsintHAM — Agent System Configuration
+# Each agent can be configured independently.
+
+agents:
+  scanner_agent:
+    enabled: true
+    timeout_sec: 120
+    max_retries: 1
+    tools:
+      - email
+      - domain
+      - ip
+      - username
+
+  investigation_agent:
+    enabled: true
+    timeout_sec: 600
+    max_retries: 0  # No retry for orchestrator — it retries children
+
+  correlation_agent:
+    enabled: true
+    timeout_sec: 60
+    max_retries: 0
+
+  validation_agent:
+    enabled: true
+    timeout_sec: 60
+    max_retries: 0
+
+  report_agent:
+    enabled: true
+    timeout_sec: 30
+    max_retries: 0
+
+  monitor_agent:
+    enabled: false  # Not yet implemented
+    timeout_sec: 300
+    max_retries: 1
+
+# Global constraints applied to all agents
+constraints:
+  max_concurrent_scans: 5
+  max_scan_timeout_sec: 120
+  max_investigation_timeout_sec: 600
+  rate_limit_per_domain: 10
+  min_confidence: 0.6
+  max_retries: 1
+  retry_delay_sec: 2.0
+
+# Scanner matrix: which scanners run for each priority level
+scanner_matrix:
+  quick:
+    email:    ["email"]
+    username: ["username"]
+    domain:   ["domain"]
+    ip:       ["ip"]
+  standard:
+    email:    ["email"]
+    username: ["username"]
+    domain:   ["domain"]
+    ip:       ["ip"]
+  deep:
+    email:    ["email"]
+    username: ["username"]
+    domain:   ["domain"]
+    ip:       ["ip"]
